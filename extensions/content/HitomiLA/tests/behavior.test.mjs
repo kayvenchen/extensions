@@ -732,10 +732,31 @@ test("Hitomi cache-aware pagination shares bounded ranges and metadata across re
 
 test("Hitomi invalid cached galleries are removed and index versions partition immutable data", async () => {
   const cache = metadataCacheFixture();
-  cache.entries.set(JSON.stringify(["gallery","42"]), {value:{id:99,title:"Wrong",files:[]},time:0});
+  cache.entries.set("hitomi:gallery-v2:42", {value:'var galleryinfo={"id":99,"title":"Wrong","files":[]};',time:0});
   const loaded = await loadContentExtension(mainPath, request => runtimeResponse({url:request.url,text:galleryAssignment(42)}), {cache});
   await loaded.extension.details("42");
   assert.equal(loaded.calls.length,1);
   cache.advance(1799); await loaded.extension.details("42"); assert.equal(loaded.calls.length,1);
   cache.advance(1); await loaded.extension.details("42"); assert.equal(loaded.calls.length,2);
+});
+
+test("Hitomi large galleries keep catalog and detail payloads compact without truncating readers", async () => {
+  const value = gallery(8);
+  value.files = Array.from({length:1070}, (_, index) => ({...value.files[0], name:`${index+1}.png`}));
+  const loaded = await loadContentExtension(mainPath, request => {
+    if (request.url.endsWith(".nozomi")) return runtimeResponse({url:request.url, bytes:nozomi([8])});
+    if (request.url.endsWith("/gg.js")) return runtimeResponse({url:request.url, text:routing});
+    return runtimeResponse({url:request.url, text:`var galleryinfo=${JSON.stringify(value)};`});
+  }, {cache:metadataCacheFixture()});
+  const page = await loaded.extension.discover({sectionId:"latest"});
+  assert.equal(page.items[0].files, undefined);
+  const details = await loaded.extension.details("8");
+  assert.equal(details.files, undefined);
+  const [installment] = await loaded.extension.installments({workId:details.workId, workInfo:details.workInfo});
+  assert.equal(installment.files, undefined);
+  const images = await loaded.extension.imagePages({installmentId:installment.installmentId, workId:installment.workId});
+  assert.equal(images.pages.length,1070);
+  value.files[1069].hash = "invalid";
+  await loaded.extension.invalidateCache();
+  await assert.rejects(() => loaded.extension.discover({sectionId:"latest"}));
 });

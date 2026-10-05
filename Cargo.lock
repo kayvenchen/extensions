@@ -315,12 +315,13 @@ dependencies = [
 
 [[package]]
 name = "manko-hitomi"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "base64",
  "futures",
  "manko-sdk",
  "regex",
+ "serde",
  "serde_json",
  "sha2",
  "url",

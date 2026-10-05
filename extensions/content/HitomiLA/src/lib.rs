@@ -2,6 +2,10 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use manko_sdk::{content::*, *};
 use regex::Regex;
+use serde::{
+    de::{Error as _, MapAccess, SeqAccess, Visitor},
+    Deserialize, Deserializer,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashSet};
@@ -122,8 +126,8 @@ async fn cached_text(context: &Context, key: &str, url: &str, ttl: f64) -> Resul
                 let source = value
                     .as_str()
                     .ok_or_else(|| invalid("Malformed cached text"))?;
-                if let Some(id) = key.strip_prefix("hitomi:gallery:") {
-                    validate_gallery(&gallery_assignment(source)?, id)?;
+                if let Some(id) = key.strip_prefix("hitomi:gallery-v2:") {
+                    validate_gallery(&gallery_card_assignment(source)?, id)?;
                 }
                 if key == "hitomi:routing" {
                     routing_assignment(source)?;
@@ -143,20 +147,91 @@ async fn cached_text(context: &Context, key: &str, url: &str, ttl: f64) -> Resul
 }
 fn hash(value: &Value) -> Result<&str> {
     let hash = text(value);
-    if hash.len() != 64
-        || !hash
-            .bytes()
-            .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
-    {
+    if !valid_hash(hash) {
         return Err(invalid("Invalid image hash"));
     }
     Ok(hash)
 }
+fn valid_hash(hash: &str) -> bool {
+    hash.len() == 64
+        && hash
+            .bytes()
+            .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+}
 pub fn gallery_assignment(source: &str) -> Result<Value> {
+    serde_json::from_str(gallery_json(source)?).map_err(|_| invalid("Malformed gallery JSON"))
+}
+fn gallery_json(source: &str) -> Result<&str> {
     let prefix = GALLERY_PREFIX
         .find(source)
         .ok_or_else(|| invalid("Malformed gallery assignment"))?;
-    serde_json::from_str(source[prefix.end()..].trim().trim_end_matches(';'))
+    Ok(source[prefix.end()..].trim().trim_end_matches(';'))
+}
+
+// Validate every file hash, retaining only the first file for catalog covers.
+struct GalleryCard(Value);
+impl<'de> Deserialize<'de> for GalleryCard {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        struct CardVisitor;
+        impl<'de> Visitor<'de> for CardVisitor {
+            type Value = GalleryCard;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("gallery metadata")
+            }
+            fn visit_map<A: MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> std::result::Result<Self::Value, A::Error> {
+                let mut gallery = serde_json::Map::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    let value = if key == "files" {
+                        map.next_value::<CoverFiles>()?.0
+                    } else {
+                        map.next_value::<Value>()?
+                    };
+                    gallery.insert(key, value);
+                }
+                Ok(GalleryCard(Value::Object(gallery)))
+            }
+        }
+        deserializer.deserialize_map(CardVisitor)
+    }
+}
+struct CoverFiles(Value);
+impl<'de> Deserialize<'de> for CoverFiles {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        struct FilesVisitor;
+        #[derive(Deserialize)]
+        struct FileHash {
+            hash: String,
+        }
+        impl<'de> Visitor<'de> for FilesVisitor {
+            type Value = CoverFiles;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("gallery files")
+            }
+            fn visit_seq<A: SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> std::result::Result<Self::Value, A::Error> {
+                let mut first = None;
+                while let Some(file) = seq.next_element::<FileHash>()? {
+                    if !valid_hash(&file.hash) {
+                        return Err(A::Error::custom("Invalid image hash"));
+                    }
+                    if first.is_none() {
+                        first = Some(json!({"hash":file.hash}));
+                    }
+                }
+                Ok(CoverFiles(json!(first.into_iter().collect::<Vec<_>>())))
+            }
+        }
+        deserializer.deserialize_seq(FilesVisitor)
+    }
+}
+fn gallery_card_assignment(source: &str) -> Result<Value> {
+    serde_json::from_str::<GalleryCard>(gallery_json(source)?)
+        .map(|card| card.0)
         .map_err(|_| invalid("Malformed gallery JSON"))
 }
 fn validate_gallery(value: &Value, expected: &str) -> Result<()> {
@@ -174,17 +249,18 @@ fn validate_gallery(value: &Value, expected: &str) -> Result<()> {
 }
 async fn gallery(context: &Context, value: &Value) -> Result<Value> {
     let id = id(value)?;
-    let value = gallery_assignment(
-        &cached_text(
-            context,
-            &format!("hitomi:gallery:{id}"),
-            &format!("{STATIC}/galleries/{id}.js"),
-            1800.0,
-        )
-        .await?,
-    )?;
+    let value = gallery_assignment(&gallery_text(context, &id).await?)?;
     validate_gallery(&value, &id)?;
     Ok(value)
+}
+async fn gallery_text(context: &Context, id: &str) -> Result<String> {
+    cached_text(
+        context,
+        &format!("hitomi:gallery-v2:{id}"),
+        &format!("{STATIC}/galleries/{id}.js"),
+        1800.0,
+    )
+    .await
 }
 fn values(gallery: &Value, group: &str, key: &str) -> Vec<String> {
     gallery[group]
@@ -256,7 +332,7 @@ pub fn work(gallery: &Value) -> Result<Value> {
         .to_string();
     }
     Ok(
-        json!({"type":"work","id":id,"workId":id,"title":primary,"subtitle":gallery.get("language_localname").unwrap_or(&gallery["language"]),"imageUrl":cover,"coverURL":cover,"contentRating":"ADULT","mediaKind":"manga","language":gallery["language"],"files":gallery["files"],"tags":tags,"publishedAt":gallery["date"],"workInfo":{"thumbnailUrl":cover,"synopsis":"","primaryTitle":primary,"secondaryTitles":if alternate.is_empty() || alternate == primary {vec![]} else {vec![alternate]},"contentRating":"ADULT","status":"completed","artist":values(gallery,"artists","artist").join(", "),"author":([values(gallery,"artists","artist"),values(gallery,"groups","group")].concat().join(", ")),"searchFacets":facets,"shareUrl":share}}),
+        json!({"type":"work","id":id,"workId":id,"title":primary,"subtitle":gallery.get("language_localname").unwrap_or(&gallery["language"]),"imageUrl":cover,"coverURL":cover,"contentRating":"ADULT","mediaKind":"manga","language":gallery["language"],"tags":tags,"publishedAt":gallery["date"],"workInfo":{"thumbnailUrl":cover,"synopsis":"","primaryTitle":primary,"secondaryTitles":if alternate.is_empty() || alternate == primary {vec![]} else {vec![alternate]},"contentRating":"ADULT","status":"completed","artist":values(gallery,"artists","artist").join(", "),"author":([values(gallery,"artists","artist"),values(gallery,"groups","group")].concat().join(", ")),"searchFacets":facets,"shareUrl":share}}),
     )
 }
 #[derive(Debug)]
@@ -358,6 +434,14 @@ fn page_url(file: &Value, routing: &Routing) -> Result<String> {
         route + 1,
         routing.path.trim_matches('/')
     ))
+}
+fn page_route(file: &Value, routing: &Routing) -> Result<u32> {
+    let number = number(hash(&file["hash"])?);
+    Ok(routing
+        .overrides
+        .get(&number)
+        .copied()
+        .unwrap_or(routing.default))
 }
 fn u32_at(bytes: &[u8], offset: usize) -> Result<u32> {
     Ok(u32::from_be_bytes(
@@ -531,11 +615,10 @@ async fn nozomi_range(
 async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
     let mut result = vec![];
     for chunk in ids.chunks(4) {
-        let cards = futures::future::join_all(
-            chunk
-                .iter()
-                .map(|id| async move { work(&gallery(context, &json!(id)).await?) }),
-        )
+        let cards = futures::future::join_all(chunk.iter().map(|id| async move {
+            let gallery = gallery_card_assignment(&gallery_text(context, &id.to_string()).await?)?;
+            work(&gallery)
+        }))
         .await;
         result.extend(cards.into_iter().collect::<Result<Vec<_>>>()?);
     }
@@ -912,10 +995,10 @@ pub fn run(context: Context, method: String, mut args: Value) -> Operation {
                 let source = if args["files"].as_array().is_some_and(|v| !v.is_empty()) {
                     args
                 } else {
-                    work(&gallery(&context, &json!(id)).await?)?
+                    gallery(&context, &json!(id)).await?
                 };
                 Ok(
-                    json!([{"installmentId":format!("gallery:{id}"),"workId":id,"langCode":source["language"],"number":1,"volume":1,"title":"Gallery","publishDate":source["publishedAt"],"files":source["files"]}]),
+                    json!([{"installmentId":format!("gallery:{id}"),"workId":id,"langCode":source["language"],"number":1,"volume":1,"title":"Gallery","publishDate":source.get("publishedAt").unwrap_or(&source["date"])}]),
                 )
             }
             "imagePages" => {
@@ -925,23 +1008,20 @@ pub fn run(context: Context, method: String, mut args: Value) -> Operation {
                 let source = if args["files"].as_array().is_some_and(|v| !v.is_empty()) {
                     args
                 } else {
-                    work(&gallery(&context, &json!(id)).await?)?
+                    gallery(&context, &json!(id)).await?
                 };
                 let routing = routing(&context).await?;
-                let pages: Vec<String> = source["files"]
+                let files = source["files"]
                     .as_array()
-                    .ok_or_else(|| invalid("Missing files"))?
+                    .ok_or_else(|| invalid("Missing files"))?;
+                let pages: Vec<String> = files
                     .iter()
                     .map(|f| page_url(f, &routing))
                     .collect::<Result<_>>()?;
-                if pages
+                if files
                     .iter()
-                    .filter_map(|v| {
-                        url::Url::parse(v)
-                            .ok()
-                            .map(|u| u.origin().ascii_serialization())
-                    })
-                    .collect::<HashSet<_>>()
+                    .map(|file| page_route(file, &routing))
+                    .collect::<Result<HashSet<_>>>()?
                     .len()
                     > 16
                 {
@@ -1110,6 +1190,17 @@ mod tests {
         assert_eq!(nozomi(&[0, 0, 0, 1]).unwrap(), vec![1]);
         assert!(nozomi(&[0xff, 0xff, 0xff, 0xff]).is_err());
         assert!(decode_node(&[0, 0, 0, 17]).is_err());
+    }
+    #[test]
+    fn catalog_projection_validates_discarded_files() {
+        let mut gallery = json!({"id":"1","title":"Fixture","files":(0..1070).map(|_| json!({"hash":"a".repeat(64),"name":"1.png"})).collect::<Vec<_>>()});
+        let source = format!("var galleryinfo={gallery};");
+        let compact = gallery_card_assignment(&source).unwrap();
+        assert_eq!(compact["files"].as_array().unwrap().len(), 1);
+        assert_eq!(work(&compact).unwrap(), work(&gallery).unwrap());
+        gallery["files"][1069]["hash"] = json!("invalid");
+        assert!(gallery_card_assignment(&format!("var galleryinfo={gallery};")).is_err());
+        assert!(gallery_card_assignment("var galleryinfo={\"files\":null};").is_err());
     }
     #[test]
     fn cached_ranges_validate_alignment_and_extent() {
