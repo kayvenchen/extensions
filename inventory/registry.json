@@ -1,60 +1,12 @@
 {
   "entries": [
     {
-      "kind": "content",
-      "id": "AllPornComic"
-    },
-    {
       "kind": "tracker",
       "id": "AniList"
     },
     {
       "kind": "content",
-      "id": "Atsumaru"
-    },
-    {
-      "kind": "content",
-      "id": "Comix"
-    },
-    {
-      "kind": "content",
       "id": "HitomiLA"
-    },
-    {
-      "kind": "content",
-      "id": "LNori"
-    },
-    {
-      "kind": "content",
-      "id": "MadaraDex"
-    },
-    {
-      "kind": "content",
-      "id": "MangaBat"
-    },
-    {
-      "kind": "content",
-      "id": "MangaDemon"
-    },
-    {
-      "kind": "content",
-      "id": "MangaDex"
-    },
-    {
-      "kind": "content",
-      "id": "MangaDot"
-    },
-    {
-      "kind": "content",
-      "id": "MangaFox"
-    },
-    {
-      "kind": "content",
-      "id": "Mangago"
-    },
-    {
-      "kind": "content",
-      "id": "MangaKakalot"
     },
     {
       "kind": "tracker",
@@ -63,18 +15,6 @@
     {
       "kind": "content",
       "id": "NHentai"
-    },
-    {
-      "kind": "content",
-      "id": "RoyalRoad"
-    },
-    {
-      "kind": "content",
-      "id": "Webtoon"
-    },
-    {
-      "kind": "content",
-      "id": "WeebCentral"
     }
   ]
 }

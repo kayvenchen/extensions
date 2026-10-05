@@ -3,8 +3,8 @@
   "name": "nHentai",
   "description": "Anonymous discovery, search, gallery details, and page reading for nhentai.net.",
   "kind": "content",
-  "apiVersion": "1.0",
-  "version": "0.4.1",
+  "apiVersion": "2.0",
+  "version": "2.0.0",
   "language": "multi",
   "languages": [
     "multi",
@@ -54,11 +54,13 @@
   "iconFile": "icon.svg",
   "license": "Apache-2.0",
   "compatibility": {
-    "adapter": "source-owned-js",
+    "adapter": "native-rust-wasm",
     "status": "supported",
     "scope": "core",
     "note": null,
-    "limitations": []
+    "limitations": [],
+    "runtime": "native-wasm",
+    "apiVersion": "2.0"
   },
   "upstream": {
     "repository": "https://github.com/Aidoku-Community/sources",
@@ -66,5 +68,7 @@
     "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
     "sourcePath": "sources/multi.nhentai",
     "relationship": "algorithmReference"
-  }
+  },
+  "runtime": "wasm",
+  "crate": "manko-nhentai"
 }

@@ -1,7 +1,7 @@
 {
   "id": "k800k.extensions",
   "name": "manko Extensions",
-  "description": "External manko Extension API v1 catalog.",
+  "description": "External Manko Extension API 2.0 WASM catalog.",
   "homepage": "https://k800k.github.io/extensions/",
   "privacyURL": "https://github.com/k800k/extensions/blob/main/PRIVACY.md",
   "publisherName": "manko Extension Contributors"

@@ -3,17 +3,46 @@
   "name": "MyAnimeList",
   "description": "Track manga progress and lists with MyAnimeList.",
   "kind": "tracker",
-  "apiVersion": "1.1",
-  "version": "1.0.1",
+  "apiVersion": "2.0",
+  "version": "2.0.0",
   "language": "multi",
-  "languages": ["multi"],
+  "languages": [
+    "multi"
+  ],
   "contentRating": "SAFE",
   "availability": "approvalRequired",
-  "capabilities": ["authentication", "progress", "trackerCollections", "trackerSearch"],
-  "permissions": ["authenticationHandoff", "network", "secureState", "trackerUpdates"],
-  "allowedHTTPSHosts": ["api.myanimelist.net", "cdn.myanimelist.net", "myanimelist.net"],
-  "authenticationModes": ["oauth2PKCE"],
-  "developers": [{ "name": "manko Extension Contributors", "github": "https://github.com/k800k/extensions" }],
+  "capabilities": [
+    "authentication",
+    "progress",
+    "trackerCollections",
+    "trackerSearch"
+  ],
+  "permissions": [
+    "authenticationHandoff",
+    "network",
+    "secureState",
+    "trackerUpdates"
+  ],
+  "allowedHTTPSHosts": [
+    "api.myanimelist.net",
+    "cdn.myanimelist.net",
+    "myanimelist.net"
+  ],
+  "authenticationModes": [
+    "oauth2PKCE"
+  ],
+  "developers": [
+    {
+      "name": "manko Extension Contributors",
+      "github": "https://github.com/k800k/extensions"
+    }
+  ],
   "iconFile": "icon.svg",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "runtime": "wasm",
+  "crate": "manko-myanimelist",
+  "compatibility": {
+    "runtime": "native-wasm",
+    "apiVersion": "2.0"
+  }
 }

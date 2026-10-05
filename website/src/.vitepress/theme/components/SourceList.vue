@@ -70,7 +70,7 @@ onUnmounted(() => request?.abort());
     <main>
       <div id="add-repo-btn">
         <a :href="addLink || undefined" :aria-disabled="!addLink">Add Repository</a>
-        <p>Requires <b>Manko</b>. Each arrow opens an installation review.</p>
+        <p>Requires <b>Manko</b>.</p>
       </div>
       <div id="filter-container" role="region" aria-label="Catalog filters">
         <div class="filter-group">

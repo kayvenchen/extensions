@@ -1,6 +1,7 @@
 /* Copyright 2026 manko Extension Contributors; SPDX-License-Identifier: Apache-2.0 */
 import { readFile } from "node:fs/promises";
-import vm from "node:vm";
+import { dirname, resolve } from "node:path";
+import { instantiate } from "../../packages/cli/lib/wasm.mjs";
 
 export const MINIMAL_PNG_BYTES = Object.freeze(Array.from(Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -24,113 +25,80 @@ export function runtimeResponse({ url = "https://example.invalid/", status = 200
   return { url, status, headers, mimeType, cookies, dataBase64: data.toString("base64") };
 }
 
-export function makeTextDocument() {
-  return {
-    createElement(tagName) {
-      if (String(tagName).toLowerCase() === "canvas") return { getContext: () => null };
-      let value = "";
-      return {
-        get value() { return value; },
-        set value(next) { value = String(next); },
-        get innerHTML() { return value; },
-        set innerHTML(next) {
-          value = String(next)
-            .replace(/&#x([0-9a-f]+);/gi, (_, digits) => String.fromCodePoint(Number.parseInt(digits, 16)))
-            .replace(/&#([0-9]+);/g, (_, digits) => String.fromCodePoint(Number.parseInt(digits, 10)))
-            .replaceAll("&amp;", "&")
-            .replaceAll("&lt;", "<")
-            .replaceAll("&gt;", ">")
-            .replaceAll("&quot;", '"')
-            .replaceAll("&#39;", "'");
-        }
-      };
-    }
-  };
-}
-
 async function loadExtension(mainPath, responder, kind, options = {}) {
-  const source = await readFile(mainPath, "utf8");
-  const calls = [];
-  const sleeps = [];
-  const challenges = [];
-  const webCalls = [];
-  const state = new Map(Object.entries(options.initialState || {}));
-  const secureState = new Map(Object.entries(options.secureState || {}));
-  let cookies = structuredClone(options.initialCookies || []);
-  const context = {
-    ...(options.cache ? { cache: options.cache } : {}),
-    http: {
-      async request(request) {
-        calls.push(request);
-        return responder(request, calls.length - 1);
-      },
-      registerInterceptor() {}
-    },
-    cookies: {
-      getAll: () => structuredClone(cookies),
-      setAll(value) { cookies = structuredClone(value || []); }
-    },
-    state: {
-      get: key => state.get(key),
-      set: (key, value) => state.set(key, value),
-      remove: key => state.delete(key),
-      reset: () => state.clear()
-    },
-    secureState: {
-      get: key => secureState.get(key),
-      set: (key, value) => secureState.set(key, value),
-      remove: key => secureState.delete(key)
-    },
-    rateLimit: { async sleep(milliseconds) { sleeps.push(milliseconds); } },
-    log: { debug() {}, warning() {} },
-    clock: { now: () => options.now || "2026-01-01T00:00:00.000Z" },
-    challenge: { request(url) { challenges.push(url); } },
-    authentication: { request() {} },
-    encoding: {
-      toBase64: value => Buffer.from(value).toString("base64"),
-      fromBase64: value => Uint8Array.from(Buffer.from(value, "base64")).buffer
-    },
-    ...(options.webHandler ? {
-      web: {
-        async execute(request) {
-          webCalls.push(request);
-          return options.webHandler(request, webCalls.length - 1);
-        }
+  const metadata = JSON.parse(await readFile(resolve(dirname(mainPath),"extension.json"),"utf8"));
+  const root = resolve(dirname(mainPath),"../../..");
+  const {dispatch} = instantiate(await readFile(resolve(root,"target/wasm32-unknown-unknown/release",metadata.crate.replaceAll("-","_")+".wasm")));
+  const calls=[], sleeps=[], challenges=[], state=new Map(Object.entries(options.initialState || {})), secureState=new Map(Object.entries(options.secureState || {}));
+  const cache=options.cache || metadataCacheFixture(100);
+  const imageOverrides=new Map();
+  let sequence=0, cookies=structuredClone(options.initialCookies || []);
+  const context={cache,http:{request:responder},secureState:{set:(key,value)=>secureState.set(key,value),remove:key=>secureState.delete(key)}};
+  async function service({service,arguments:args},owner) {
+    switch(service) {
+    case "http": {
+      const request={...args};
+      if (args.bodyBase64) {
+        const bytes=Buffer.from(args.bodyBase64,"base64");
+        if(kind==="tracker") request.body=bytes.toString();
+        else {try {request.body=JSON.parse(bytes.toString());} catch {request.body=bytes.toString();}}
       }
-    } : {})
-  };
-  let extension;
-  const sandbox = {
-    manko: { context },
-    defineContentExtension(value) { if (kind === "content") extension = value; return value; },
-    defineTrackerExtension(value) { if (kind === "tracker") extension = value; return value; },
-    URL,
-    URLSearchParams,
-    TextDecoder,
-    TextEncoder,
-    Uint8Array,
-    Uint32Array,
-    ArrayBuffer,
-    DataView,
-    atob: value => Buffer.from(value, "base64").toString("binary"),
-    btoa: value => Buffer.from(value, "binary").toString("base64"),
-    ...(options.document ? { document: options.document } : {}),
-    ...(options.globals || {})
-  };
-  vm.runInNewContext(source, sandbox, { filename: mainPath, timeout: 2000 });
-  if (!extension) throw new Error(`No ${kind} extension was defined by ${mainPath}`);
-  if (typeof extension.initialize === "function") await extension.initialize(context);
-  return {
-    extension,
-    context,
-    calls,
-    sleeps,
-    challenges,
-    state,
-    secureState,
-    webCalls,
-    get cookies() { return structuredClone(cookies); }
-  };
+      calls.push(request);
+      const loader=imageOverrides.get(owner) || context.http.imageResource;
+      const response=await (args.imageResource && loader ? loader(request) : responder(request,calls.length-1));
+      if (response.cookies?.length) cookies=structuredClone(response.cookies);
+      return response;
+    }
+    case "state": case "secureState": {
+      const store=service==="state"?state:secureState;
+      if(args.operation==="get") return store.get(args.key) ?? null;
+      if(args.operation==="set") store.set(args.key,args.value);
+      else if(args.operation==="remove") store.delete(args.key);
+      else if(args.operation==="reset") store.clear();
+      return null;
+    }
+    case "clock": return {now:options.now || "2026-01-01T00:00:00.000Z",milliseconds:Date.parse(options.now || "2026-01-01T00:00:00.000Z"),random:Math.floor(Math.random()*0xfffffffe)+1};
+    case "sleep": sleeps.push(args.milliseconds);return null;
+    case "challenge": challenges.push(args.url);throw Object.assign(new Error("Visible verification required"),{name:"ChallengeRequiredError",type:"challengeRequired",url:args.url});
+    case "cache": {
+      if(options.globals?.Date) cache.setTime(options.globals.Date.now()/1000);
+      const value=await cache.dispatch({...args,owner});
+      return args.operation==="read" ? {...value,available:Boolean(options.cache)} : value;
+    }
+    case "log": return null;
+    default: throw new Error("Unsupported host service: "+service);
+    }
+  }
+  function unwrap(result) {
+    if (!result.ok) throw Object.assign(new Error(result.error?.message || "Extension failed"),result.error);
+    return result.value;
+  }
+  function invoke(method,args={}) {
+    if(method==="invalidateCache") cache.clear();
+    const owner=String(++sequence);
+    if(args?.http) imageOverrides.set(owner,args.http.imageResource || args.http.request);
+    const result=dispatch({action:"invoke",invocationID:owner,method:kind==="tracker" && method==="search"?"trackerSearch":method,arguments:args});
+    if(!result.pending) {try {return unwrap(result);} catch(error) {return Promise.reject(error);}}
+    return (async()=>{
+      let output=result;
+      for(let step=0;step<10000;step++) {
+        if(!output.pending) return unwrap(output);
+        const responses=await Promise.all(output.pending.map(async request=>{
+          try {return {id:request.id,payload:await service(request,owner),error:null};}
+          catch(error) {return {id:request.id,payload:null,error:{name:error.name,message:error.message,type:error.type,url:error.url}};}
+        }));
+        output=dispatch({action:"resume",invocationID:owner,responses});
+      }
+      throw new Error("Continuation limit exceeded");
+    })();
+  }
+  const extension=new Proxy({}, {get:(_,method)=>(args)=>{
+    if(kind==="tracker" && method==="progress" && typeof args==="string") args={remoteWorkID:args};
+    if(kind==="tracker" && method==="update" && !args?.progress) args={progress:args};
+    return invoke(method,args);
+  }});
+  await extension.initialize({});
+  return {extension,calls,sleeps,challenges,state,secureState,webCalls:[],context,get cookies(){return structuredClone(cookies);},dispatch};
 }
 
 export function loadContentExtension(mainPath, responder, options = {}) {
@@ -144,22 +112,39 @@ export function loadTrackerExtension(mainPath, responder, options = {}) {
 
 // A host cache fixture retained across VM restarts. Swift tests cover the native
 // disk broker and fencing; source tests use this to assert request reuse.
-export function metadataCacheFixture() {
-  const entries = new Map();
-  let now = 0, reload = false, generation = 0;
+export function metadataCacheFixture(maximumEntries=1000) {
+  const entries=new Map();
+  const leases=new Map();
+  let now=0,reload=false,generation=0;
   return {
     entries,
-    advance(seconds) { now += seconds; },
-    setReload(value) { reload = value; },
-    clear() { generation++; entries.clear(); },
-    async remove(key) { generation++; entries.delete(key); },
-    async remember(key, { ttlSeconds }, loader) {
-      const entry = entries.get(key);
-      if (entry && !(reload && ttlSeconds !== null) && (ttlSeconds === null || now - entry.time < ttlSeconds)) return structuredClone(entry.value);
-      const token = generation;
-      const value = await loader();
-      if (token === generation && Buffer.byteLength(JSON.stringify(value)) <= 16777216) entries.set(key, { value: structuredClone(value), time: now });
-      return structuredClone(value);
+    advance(seconds){now+=seconds;},
+    setTime(value){now=value;},
+    setReload(value){reload=value;},
+    clear(){generation++;entries.clear();},
+    async remove(key){generation++;entries.delete(key);},
+    dispatch(args) {
+      if(args.operation==="acquire") {
+        if(!leases.has(args.key)) {leases.set(args.key,[]);return {};}
+        return new Promise(resolve=>leases.get(args.key).push(resolve));
+      }
+      if(args.operation==="release") {
+        const waiters=leases.get(args.key);
+        if(waiters?.length) waiters.shift()({}); else leases.delete(args.key);
+        return {};
+      }
+      if(args.operation==="read") {
+        const entry=entries.get(args.key);
+        if(entry) {entries.delete(args.key);entries.set(args.key,entry);}
+        const hit=entry && !(reload && args.ttlSeconds!==null) && (args.ttlSeconds===null || now-entry.time<args.ttlSeconds);
+        return {hit:Boolean(hit),value:hit?structuredClone(entry.value):null,permit:{generation}};
+      }
+      if(args.operation==="write" && args.permit?.generation===generation && Buffer.byteLength(JSON.stringify(args.value))<=16777216) {
+        entries.delete(args.key);entries.set(args.key,{value:structuredClone(args.value),time:now});
+        while(entries.size>maximumEntries) entries.delete(entries.keys().next().value);
+      }
+      if(args.operation==="remove") {generation++;entries.delete(args.key);}
+      return {};
     }
   };
 }

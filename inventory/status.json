@@ -1,76 +1,16 @@
 {
   "counts": {
-    "content": 17,
+    "content": 2,
     "tracker": 2
   },
   "entries": [
-    {
-      "id": "AllPornComic",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
     {
       "id": "AniList",
       "kind": "tracker",
       "availability": "approvalRequired"
     },
     {
-      "id": "Atsumaru",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "Comix",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
       "id": "HitomiLA",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "LNori",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MadaraDex",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MangaBat",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MangaDemon",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MangaDex",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MangaDot",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MangaFox",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "Mangago",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MangaKakalot",
       "kind": "content",
       "availability": "approvalRequired"
     },
@@ -81,21 +21,6 @@
     },
     {
       "id": "NHentai",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "RoyalRoad",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "Webtoon",
-      "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "WeebCentral",
       "kind": "content",
       "availability": "approvalRequired"
     }

@@ -3,17 +3,40 @@
   "name": "AniList",
   "description": "Track manga progress and lists with AniList.",
   "kind": "tracker",
-  "apiVersion": "1.1",
-  "version": "1.0.1",
+  "apiVersion": "2.0",
+  "version": "2.0.0",
   "language": "multi",
-  "languages": ["multi"],
+  "languages": [
+    "multi"
+  ],
   "contentRating": "SAFE",
   "availability": "approvalRequired",
-  "capabilities": ["authentication", "progress", "trackerCollections", "trackerSearch"],
-  "permissions": ["authenticationHandoff", "network", "secureState", "trackerUpdates"],
-  "allowedHTTPSHosts": ["anilist.co", "graphql.anilist.co", "s4.anilist.co"],
-  "authenticationModes": ["oauth2Implicit"],
-  "developers": [{ "name": "manko Extension Contributors", "github": "https://github.com/k800k/extensions" }],
+  "capabilities": [
+    "authentication",
+    "progress",
+    "trackerCollections",
+    "trackerSearch"
+  ],
+  "permissions": [
+    "authenticationHandoff",
+    "network",
+    "secureState",
+    "trackerUpdates"
+  ],
+  "allowedHTTPSHosts": [
+    "anilist.co",
+    "graphql.anilist.co",
+    "s4.anilist.co"
+  ],
+  "authenticationModes": [
+    "oauth2Implicit"
+  ],
+  "developers": [
+    {
+      "name": "manko Extension Contributors",
+      "github": "https://github.com/k800k/extensions"
+    }
+  ],
   "iconFile": "icon.svg",
   "license": "Apache-2.0",
   "upstream": {
@@ -22,5 +45,11 @@
     "commit": "d5002c2e144eeac8c69b236c7675c4ddedf2a0b8",
     "sourcePath": "src/AniList",
     "relationship": "behavioralReference"
+  },
+  "runtime": "wasm",
+  "crate": "manko-anilist",
+  "compatibility": {
+    "runtime": "native-wasm",
+    "apiVersion": "2.0"
   }
 }

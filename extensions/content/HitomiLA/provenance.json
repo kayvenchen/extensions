@@ -2,8 +2,11 @@
   "schemaVersion": 1,
   "sourceOwned": true,
   "id": "HitomiLA",
-  "releaseVersion": "0.3.2",
-  "generator": "scripts/build-source-owned.mjs",
+  "releaseVersion": "2.0.0",
+  "runtime": "wasm",
+  "compiler": "Rust 1.90.0",
+  "target": "wasm32-unknown-unknown",
+  "entryPoint": "extensions/content/HitomiLA/src/lib.rs",
   "upstream": {
     "repository": "https://github.com/Aidoku-Community/sources",
     "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
@@ -15,23 +18,41 @@
     ],
     "licenseChoice": "Apache-2.0"
   },
-  "modules": [
-    {
-      "file": "scripts/source-owned-runtime/05-metadata-cache.js",
-      "sha256": "6a1651eb964ace22e71b2a5c647a481dd22cc5efe7d2b177f81d5cb9959fc0c9"
+  "previousJavaScriptRelease": {
+    "schemaVersion": 1,
+    "sourceOwned": true,
+    "id": "HitomiLA",
+    "releaseVersion": "0.3.2",
+    "generator": "scripts/build-source-owned.mjs",
+    "upstream": {
+      "repository": "https://github.com/Aidoku-Community/sources",
+      "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
+      "paths": [
+        "sources/multi.hitomi/src/lib.rs",
+        "sources/multi.hitomi/src/gg.rs",
+        "sources/multi.hitomi/src/models.rs",
+        "sources/multi.hitomi/src/search.rs"
+      ],
+      "licenseChoice": "Apache-2.0"
     },
-    {
-      "file": "scripts/source-owned-runtime/15-search.js",
-      "sha256": "3c3a30507d0da1dc18295cf1dfe706ac302aad50e57d4162571bd1cfb25fdd46"
-    },
-    {
-      "file": "extensions/content/HitomiLA/src/10-core.js",
-      "sha256": "c62c66ccd0e8de29f205fe313c6642d9e0dd399fc5ed82f4fb8df7f04dbd8fdc"
-    },
-    {
-      "file": "extensions/content/HitomiLA/src/20-extension.js",
-      "sha256": "13b8cf11ec3e72964839adad7f75ecbcf2ae096a89a3bb393bf0dbb117e660eb"
-    }
-  ],
-  "generatedMainSHA256": "20cc38076bec803c253b4b03df06b1a9a0d20c3386358f235af71499e314817e"
+    "modules": [
+      {
+        "file": "scripts/source-owned-runtime/05-metadata-cache.js",
+        "sha256": "6a1651eb964ace22e71b2a5c647a481dd22cc5efe7d2b177f81d5cb9959fc0c9"
+      },
+      {
+        "file": "scripts/source-owned-runtime/15-search.js",
+        "sha256": "3c3a30507d0da1dc18295cf1dfe706ac302aad50e57d4162571bd1cfb25fdd46"
+      },
+      {
+        "file": "extensions/content/HitomiLA/src/10-core.js",
+        "sha256": "c62c66ccd0e8de29f205fe313c6642d9e0dd399fc5ed82f4fb8df7f04dbd8fdc"
+      },
+      {
+        "file": "extensions/content/HitomiLA/src/20-extension.js",
+        "sha256": "13b8cf11ec3e72964839adad7f75ecbcf2ae096a89a3bb393bf0dbb117e660eb"
+      }
+    ],
+    "generatedMainSHA256": "20cc38076bec803c253b4b03df06b1a9a0d20c3386358f235af71499e314817e"
+  }
 }

@@ -7,9 +7,9 @@ import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { MINIMAL_WEBP_BYTES, loadContentExtension, runtimeResponse, metadataCacheFixture } from "../../test-runtime.mjs";
 
-const mainPath = resolve(dirname(fileURLToPath(import.meta.url)), "../main.js");
+const mainPath = resolve(dirname(fileURLToPath(import.meta.url)), "../main.wasm");
 const manifest = JSON.parse(await readFile(resolve(dirname(mainPath), "extension.json"), "utf8"));
-const expectedUserAgent = "manko NHentai Extension/0.4.1 (+https://github.com/k800k/extensions)";
+const expectedUserAgent = "manko NHentai Extension/2.0.0 (+https://github.com/k800k/extensions)";
 const listGallery = {
   id: 101,
   media_id: "9001",
@@ -372,9 +372,11 @@ test("NHentai passes native resource references through without copying image by
 test("NHentai expires chapter metadata after thirty minutes and does not revive cache entries after refresh", async () => {
   let now = 0;
   let release;
+  let ready;
+  const started = new Promise(resolve => { ready = resolve; });
   let block = false;
   const loaded = await loadContentExtension(mainPath, async request => {
-    if (block) await new Promise(resolve => { release = resolve; });
+    if (block) await new Promise(resolve => { release = resolve; ready(); });
     return jsonResponse(request, detailGallery);
   }, { globals: { Date: class extends Date { static now() { return now; } } } });
   await loaded.extension.details("101");
@@ -386,7 +388,7 @@ test("NHentai expires chapter metadata after thirty minutes and does not revive 
   await loaded.extension.invalidateCache();
   block = true;
   const pending = loaded.extension.details("101");
-  await Promise.resolve();
+  await started;
   await loaded.extension.invalidateCache();
   block = false;
   release();

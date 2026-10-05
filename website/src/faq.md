@@ -7,7 +7,7 @@
 ## General
 
 ::: details Are any extensions published right now?
-Yes. The catalog lists 17 content extensions and two tracker extensions: AniList and MyAnimeList.
+Yes. The catalog lists two content extensions (HitomiLA and NHentai) and two tracker extensions (AniList and MyAnimeList).
 :::
 
 ::: details What extension types are supported?
@@ -15,7 +15,7 @@ Content and tracker extensions. Theme extensions remain unsupported; this does n
 :::
 
 ::: details Does this repository include manga or comics?
-No. It publishes extension metadata and versioned JavaScript. External services decide what they host, and users remain responsible for accessing only services and material they are authorized to use.
+No. It publishes extension metadata and versioned WebAssembly. External services decide what they host, and users remain responsible for accessing only services and material they are authorized to use.
 :::
 
 ::: details Does adding the repository install every extension?

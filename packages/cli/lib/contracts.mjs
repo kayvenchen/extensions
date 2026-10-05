@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
-export const API_VERSION = "1.0";
-export const SUPPORTED_API_VERSIONS = new Set(["1.0", "1.1"]);
+export const API_VERSION = "2.0";
+export const SUPPORTED_API_VERSIONS = new Set(["2.0"]);
 
 export const repositoryCapabilities = new Set([
   "browse", "discover", "search", "filters", "details", "installments",
@@ -15,8 +15,7 @@ export const repositoryCapabilities = new Set([
 
 export const extensionPermissions = new Set([
   "network", "cookies", "state", "secureState", "rateLimiting", "redactedLogging",
-  "challengeHandoff", "authenticationHandoff", "managedCollections", "trackerUpdates",
-  "webExecution"
+  "challengeHandoff", "authenticationHandoff", "managedCollections", "trackerUpdates"
 ]);
 
 export const authenticationModes = new Set([
@@ -75,7 +74,10 @@ export function isAllowedHTTPSHost(value) {
 /** Validate one open-source content or tracker extension package. */
 export async function assertExtensionPackage(directory, expectedKind, expectedID) {
   const metadata = JSON.parse(await readFile(join(directory, "extension.json"), "utf8"));
-  const source = await readFile(join(directory, "main.js"), "utf8");
+  const source = await readFile(join(directory, "src", "lib.rs"), "utf8");
+  assert.equal(metadata.runtime, "wasm");
+  assert.match(metadata.crate, /^[a-z][a-z0-9-]+$/);
+  await readFile(join(directory, "Cargo.toml"));
 
   assert.equal(metadata.id, expectedID);
   assert.match(metadata.id, /^[A-Za-z0-9._-]{1,128}$/);
@@ -92,7 +94,7 @@ export async function assertExtensionPackage(directory, expectedKind, expectedID
   assert.ok(availabilities.has(metadata.availability), `unsupported availability ${metadata.availability}`);
   assertStringArray(metadata.capabilities, "capabilities", repositoryCapabilities);
   assertStringArray(metadata.permissions, "permissions", extensionPermissions, { required: true });
-  assert.ok(metadata.permissions.includes("network"), "network permission is required by API v1");
+  assert.ok(metadata.permissions.includes("network"), "network permission is required by this catalog");
   assertStringArray(metadata.allowedHTTPSHosts, "allowedHTTPSHosts", undefined, { required: true });
   assert.ok(metadata.allowedHTTPSHosts.every(isAllowedHTTPSHost), "allowedHTTPSHosts must contain exact public lower-case hostnames or explicit *. subdomain patterns");
   assertStringArray(metadata.authenticationModes, "authenticationModes", authenticationModes, { required: true });
@@ -108,19 +110,7 @@ export async function assertExtensionPackage(directory, expectedKind, expectedID
     assert.match(license, /GNU GENERAL PUBLIC LICENSE/, `${expectedID} must include its declared GPL license`);
   }
 
-  const declaration = expectedKind === "content" ? "defineContentExtension" : "defineTrackerExtension";
-  assert.match(source, new RegExp(`${declaration}\\s*\\(`));
-  assert.doesNotMatch(source, /defineThemeExtension\s*\(/, "theme declarations are unsupported");
-  if (expectedKind === "tracker") {
-    for (const operation of ["authentication", "search", "progress", "update", "collections"]) {
-      assert.match(source, new RegExp(`\\b${operation}\\s*\\(`), `tracker is missing ${operation}`);
-    }
-    assert.ok(metadata.capabilities.includes("trackerSearch"), "trackerSearch capability is required");
-    assert.ok(metadata.capabilities.includes("progress"), "progress capability is required");
-    assert.ok(metadata.permissions.includes("secureState"), "tracker secureState permission is required");
-    assert.ok(metadata.permissions.includes("authenticationHandoff"), "tracker authenticationHandoff permission is required");
-  }
-  assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(/, "extensions must use the brokered runtime client");
+  assert.match(source, /export_extension!\s*\(/, "missing WASM ABI export");
   return metadata;
 }
 

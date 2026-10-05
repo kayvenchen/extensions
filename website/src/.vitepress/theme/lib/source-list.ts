@@ -4,25 +4,10 @@ import type { CatalogSource } from "./catalog";
 // Provider homepages verified against the checked-in extension implementations.
 // These are display metadata, not API endpoints or script download locations.
 export const PROVIDER_HOMEPAGES: Record<string, string> = {
-  AllPornComic: "https://allporncomic.com",
   AniList: "https://anilist.co",
-  Atsumaru: "https://atsu.moe",
-  Comix: "https://comix.to",
   HitomiLA: "https://hitomi.la",
-  LNori: "https://lnori.com",
-  MadaraDex: "https://madaradex.org",
-  MangaBat: "https://www.mangabats.com",
-  MangaDemon: "https://demonicscans.org",
-  MangaDex: "https://mangadex.org",
-  MangaDot: "https://mangadot.net",
-  MangaFox: "https://fanfox.net",
-  MangaKakalot: "https://www.mangakakalot.gg",
-  Mangago: "https://www.mangago.me",
   MyAnimeList: "https://myanimelist.net",
   NHentai: "https://nhentai.net",
-  RoyalRoad: "https://www.royalroad.com",
-  Webtoon: "https://www.webtoons.com",
-  WeebCentral: "https://weebcentral.com",
 };
 
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });

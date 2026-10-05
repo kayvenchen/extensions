@@ -1,0 +1,14 @@
+[package]
+name = "manko-anilist"
+version = "2.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+manko-sdk.workspace = true
+serde_json.workspace = true
+regex.workspace = true

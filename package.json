@@ -3,19 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "website"],
+  "workspaces": [
+    "packages/cli",
+    "website"
+  ],
   "scripts": {
-    "generate": "node scripts/build-source-owned.mjs && node scripts/refresh-paperback-bridge.mjs",
-    "generate:check": "node scripts/build-source-owned.mjs --check && node scripts/refresh-paperback-bridge.mjs --check",
-    "check": "npm run generate:check && node packages/cli/bin/manko-ext.mjs check",
-    "test": "npm run generate:check && node --test packages/cli/test/*.test.mjs packages/paperback-compat/*.test.mjs scripts/*.test.mjs extensions/content/*/tests/*.test.mjs extensions/tracker/*/tests/*.test.mjs",
-    "bundle": "npm run generate && node packages/cli/bin/manko-ext.mjs bundle",
-    "publish:dry-run": "npm run generate:check && node packages/cli/bin/manko-ext.mjs publish --dry-run",
+    "compile": "node packages/cli/bin/manko-ext.mjs compile",
+    "check": "node packages/cli/bin/manko-ext.mjs check",
+    "test": "cargo test --workspace --locked && npm run compile && node --test packages/cli/test/*.test.mjs extensions/content/*/tests/*.test.mjs extensions/tracker/*/tests/*.test.mjs",
+    "bundle": "node packages/cli/bin/manko-ext.mjs bundle",
+    "publish:dry-run": "node packages/cli/bin/manko-ext.mjs publish --dry-run",
     "docs:dev": "npm --workspace @manko/extensions-website run dev",
     "docs:check": "npm --workspace @manko/extensions-website run typecheck",
     "docs:build": "npm --workspace @manko/extensions-website run build",
     "docs:preview": "npm --workspace @manko/extensions-website run preview"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "Apache-2.0"
 }

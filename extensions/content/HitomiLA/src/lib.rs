@@ -1,0 +1,1077 @@
+// Copyright 2026 manko Extension Contributors; SPDX-License-Identifier: Apache-2.0
+use base64::{engine::general_purpose::STANDARD, Engine};
+use manko_sdk::{content::*, *};
+use regex::Regex;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, HashSet};
+const STATIC: &str = "https://ltn.gold-usergeneratedcontent.net";
+const LANGUAGES: &[&str] = &[
+    "english",
+    "japanese",
+    "chinese",
+    "spanish",
+    "french",
+    "german",
+    "korean",
+    "russian",
+    "italian",
+    "portuguese",
+    "polish",
+    "dutch",
+    "vietnamese",
+    "indonesian",
+    "thai",
+    "czech",
+    "hungarian",
+    "arabic",
+    "turkish",
+    "ukrainian",
+];
+const FIELDS: &[(&str, &str)] = &[
+    ("tag", "Tag"),
+    ("female", "Female Tag"),
+    ("male", "Male Tag"),
+    ("artist", "Artist"),
+    ("group", "Group"),
+    ("series", "Series"),
+    ("character", "Character"),
+    ("language", "Language"),
+    ("type", "Type"),
+];
+fn filters() -> Value {
+    configuration(
+        "hitomi-search",
+        "Hitomi.la Search",
+        FIELDS,
+        &[
+            ("newest", "Newest (Date Added)"),
+            ("date-published", "Date Published"),
+            ("popular-today", "Popular Today"),
+            ("popular-week", "Popular This Week"),
+            ("popular-month", "Popular This Month"),
+            ("popular-year", "Popular This Year"),
+            ("random", "Random"),
+        ],
+        LANGUAGES,
+    )
+}
+fn invalid(message: &str) -> Value {
+    error(message, "invalidResponse")
+}
+async fn request(
+    context: &Context,
+    url: &str,
+    range: Option<(u64, u64)>,
+    image: bool,
+) -> Result<Value> {
+    let parsed = url::Url::parse(url).map_err(|_| invalid("Invalid URL"))?;
+    let host = parsed.host_str().unwrap_or("");
+    let page_host =
+        Regex::new(r"^a(?:[1-9][0-9]{0,2}|1000)\.gold-usergeneratedcontent\.net$").unwrap();
+    if parsed.scheme() != "https"
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || !([
+            "hitomi.la",
+            "tagindex.hitomi.la",
+            "ltn.gold-usergeneratedcontent.net",
+            "atn.gold-usergeneratedcontent.net",
+        ]
+        .contains(&host)
+            || page_host.is_match(host))
+    {
+        return Err(error("Unexpected image host", "hostNotAllowed"));
+    }
+    let mut headers = json!({"Referer":"https://hitomi.la/","Accept":if image {"image/avif,image/webp,image/gif,image/jpeg,image/png"} else {"application/octet-stream,text/plain,application/json"}});
+    if let Some((start, end)) = range {
+        headers["Range"] = json!(format!("bytes={start}-{end}"));
+        headers["Accept-Encoding"] = json!("identity");
+    }
+    let response = context.request(url, "GET", headers, None, image).await?;
+    if status(&response) == 404 {
+        return Ok(response);
+    }
+    if !matches!(status(&response), 200 | 206) {
+        return Err(error(
+            format!("Hitomi.la returned HTTP {}", status(&response)),
+            "serviceError",
+        ));
+    }
+    Ok(response)
+}
+async fn cached_text(context: &Context, key: &str, url: &str, ttl: f64) -> Result<String> {
+    let value = context
+        .remember(
+            key,
+            Some(ttl),
+            async {
+                let response = request(context, url, None, false).await?;
+                if status(&response) == 404 {
+                    return Err(error("Gallery not found", "notFound"));
+                }
+                Ok(json!(String::from_utf8(bytes(&response)?)
+                    .map_err(|_| invalid("Invalid text response"))?))
+            },
+            |value| {
+                let source = value
+                    .as_str()
+                    .ok_or_else(|| invalid("Malformed cached text"))?;
+                if let Some(id) = key.strip_prefix("hitomi:gallery:") {
+                    validate_gallery(&gallery_assignment(source)?, id)?;
+                }
+                if key == "hitomi:routing" {
+                    routing_assignment(source)?;
+                }
+                if key == "hitomi:index-version"
+                    && (source.trim().is_empty()
+                        || source.trim().len() > 20
+                        || !source.trim().bytes().all(|v| v.is_ascii_digit()))
+                {
+                    return Err(invalid("Invalid index version"));
+                }
+                Ok(())
+            },
+        )
+        .await?;
+    Ok(text(&value).to_owned())
+}
+fn hash(value: &Value) -> Result<&str> {
+    let hash = text(value);
+    if hash.len() != 64
+        || !hash
+            .bytes()
+            .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+    {
+        return Err(invalid("Invalid image hash"));
+    }
+    Ok(hash)
+}
+pub fn gallery_assignment(source: &str) -> Result<Value> {
+    let prefix = Regex::new(r#"^\s*(?:"use strict";\s*)?var\s+galleryinfo\s*=\s*"#)
+        .unwrap()
+        .find(source)
+        .ok_or_else(|| invalid("Malformed gallery assignment"))?;
+    serde_json::from_str(source[prefix.end()..].trim().trim_end_matches(';'))
+        .map_err(|_| invalid("Malformed gallery JSON"))
+}
+fn validate_gallery(value: &Value, expected: &str) -> Result<()> {
+    if id(&value["id"])? != expected || text(&value["title"]).trim().is_empty() {
+        return Err(invalid("Gallery metadata mismatch"));
+    }
+    let files = value["files"]
+        .as_array()
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| invalid("Gallery files missing"))?;
+    for file in files {
+        hash(&file["hash"])?;
+    }
+    Ok(())
+}
+async fn gallery(context: &Context, value: &Value) -> Result<Value> {
+    let id = id(value)?;
+    let value = gallery_assignment(
+        &cached_text(
+            context,
+            &format!("hitomi:gallery:{id}"),
+            &format!("{STATIC}/galleries/{id}.js"),
+            1800.0,
+        )
+        .await?,
+    )?;
+    validate_gallery(&value, &id)?;
+    Ok(value)
+}
+fn values(gallery: &Value, group: &str, key: &str) -> Vec<String> {
+    gallery[group]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|v| text(&v[key]).trim())
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+pub fn work(gallery: &Value) -> Result<Value> {
+    let id = id(&gallery["id"])?;
+    validate_gallery(gallery, &id)?;
+    let hash = hash(&gallery["files"][0]["hash"])?;
+    let cover = format!(
+        "https://atn.gold-usergeneratedcontent.net/avifbigtn/{}/{}/{hash}.avif",
+        &hash[63..],
+        &hash[61..63]
+    );
+    let mut tags: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut facets = vec![];
+    for tag in gallery["tags"].as_array().into_iter().flatten() {
+        let value = text(&tag["tag"]).trim();
+        if value.is_empty() {
+            continue;
+        }
+        let field = if tag["female"] == true || tag["female"] == 1 || tag["female"] == "1" {
+            "female"
+        } else if tag["male"] == true || tag["male"] == 1 || tag["male"] == "1" {
+            "male"
+        } else {
+            "tag"
+        };
+        tags.entry(field.into()).or_default().push(value.into());
+    }
+    for (group, key, field, title) in [
+        ("artists", "artist", "artist", "Artists"),
+        ("groups", "group", "group", "Groups"),
+        ("parodys", "parody", "series", "Series"),
+        ("characters", "character", "character", "Characters"),
+    ] {
+        for value in values(gallery, group, key) {
+            facets.push(json!({"fieldID":field,"value":value,"title":value,"groupTitle":title,"presentation":if matches!(field,"artist"|"group") {"creator"} else {"tag"}}));
+        }
+    }
+    for (field, group) in [("female", "Female"), ("male", "Male"), ("tag", "Tags")] {
+        for value in tags.get(field).into_iter().flatten() {
+            facets.push(json!({"fieldID":field,"value":value,"title":value,"groupTitle":group,"presentation":"tag"}));
+        }
+    }
+    for (field, title) in [("language", "Language"), ("type", "Type")] {
+        if !text(&gallery[field]).is_empty() {
+            facets.push(json!({"fieldID":field,"value":gallery[field],"title":gallery[field],"groupTitle":title,"presentation":"tag"}));
+        }
+    }
+    let alternate = text(&gallery["japanese_title"]).trim();
+    let primary = text(&gallery["title"]).trim();
+    let mut share = format!("https://hitomi.la/galleries/{id}.html");
+    if text(&gallery["galleryurl"]).starts_with('/') {
+        share = https(
+            url::Url::parse("https://hitomi.la")
+                .unwrap()
+                .join(text(&gallery["galleryurl"]))
+                .map_err(|_| invalid("Invalid gallery URL"))?
+                .as_str(),
+            &["hitomi.la"],
+        )?
+        .to_string();
+    }
+    Ok(
+        json!({"type":"work","id":id,"workId":id,"title":primary,"subtitle":gallery.get("language_localname").unwrap_or(&gallery["language"]),"imageUrl":cover,"coverURL":cover,"contentRating":"ADULT","mediaKind":"manga","language":gallery["language"],"files":gallery["files"],"tags":tags,"publishedAt":gallery["date"],"workInfo":{"thumbnailUrl":cover,"synopsis":"","primaryTitle":primary,"secondaryTitles":if alternate.is_empty() || alternate == primary {vec![]} else {vec![alternate]},"contentRating":"ADULT","status":"completed","artist":values(gallery,"artists","artist").join(", "),"author":([values(gallery,"artists","artist"),values(gallery,"groups","group")].concat().join(", ")),"searchFacets":facets,"shareUrl":share}}),
+    )
+}
+#[derive(Debug)]
+pub struct Routing {
+    path: String,
+    default: u32,
+    overrides: BTreeMap<u32, u32>,
+}
+pub fn routing_assignment(source: &str) -> Result<Routing> {
+    if !Regex::new(r"\bgg\s*=\s*\{").unwrap().is_match(source) {
+        return Err(invalid("Routing assignment missing"));
+    }
+    let path = Regex::new(r#"\bb\s*:\s*["']([A-Za-z0-9._/-]+)["']"#)
+        .unwrap()
+        .captures(source)
+        .and_then(|c| c.get(1))
+        .map(|v| v.as_str().to_owned())
+        .ok_or_else(|| invalid("Routing path missing"))?;
+    let default = Regex::new(r"\bvar\s+o\s*=\s*([0-9]{1,3})\s*;")
+        .unwrap()
+        .captures(source)
+        .and_then(|c| c[1].parse::<u32>().ok())
+        .ok_or_else(|| invalid("Hitomi.la routing configuration is malformed"))?;
+    if path.len() > 256 || path.contains("..") || path.contains("//") || default > 999 {
+        return Err(invalid("Invalid routing configuration"));
+    }
+    let body = Regex::new(r"(?s)\bswitch\s*\(\s*g\s*\)\s*\{(.*?)\}\s*return\s+o\s*;")
+        .unwrap()
+        .captures(source)
+        .map(|v| v[1].to_owned())
+        .unwrap_or_default();
+    for assignment in Regex::new(r"\bo\s*=\s*([0-9]+)\s*;\s*break\s*;")
+        .unwrap()
+        .captures_iter(&body)
+    {
+        if assignment[1].parse::<u32>().unwrap_or(u32::MAX) > 999 {
+            return Err(invalid("Routing result out of bounds"));
+        }
+    }
+    let mut overrides = BTreeMap::new();
+    for group in
+        Regex::new(r"((?:\s*case\s+[0-9]+\s*:\s*)+)\s*o\s*=\s*([0-9]{1,10})\s*;\s*break\s*;")
+            .unwrap()
+            .captures_iter(&body)
+    {
+        let route = group[2]
+            .parse::<u32>()
+            .map_err(|_| invalid("Invalid route"))?;
+        for key in Regex::new(r"case\s+([0-9]+)\s*:")
+            .unwrap()
+            .captures_iter(&group[1])
+        {
+            let key = key[1]
+                .parse::<u32>()
+                .map_err(|_| invalid("Invalid routing key"))?;
+            if key > 4095 {
+                return Err(invalid("Routing key out of bounds"));
+            }
+            overrides.insert(key, route);
+        }
+    }
+    Ok(Routing {
+        path,
+        default,
+        overrides,
+    })
+}
+async fn routing(context: &Context) -> Result<Routing> {
+    routing_assignment(
+        &cached_text(context, "hitomi:routing", &format!("{STATIC}/gg.js"), 60.0).await?,
+    )
+}
+fn number(hash: &str) -> u32 {
+    u32::from_str_radix(&format!("{}{}", &hash[63..], &hash[61..63]), 16).unwrap()
+}
+fn page_url(file: &Value, routing: &Routing) -> Result<String> {
+    let hash = hash(&file["hash"])?;
+    let number = number(hash);
+    let route = routing
+        .overrides
+        .get(&number)
+        .copied()
+        .unwrap_or(routing.default);
+    let name = text(&file["name"]).to_lowercase();
+    let original = name.rsplit('.').next().unwrap_or("");
+    let extension = if file["hasavif"] == 1 || file["hasavif"] == "1" {
+        "avif"
+    } else if original == "gif" {
+        "gif"
+    } else if file["haswebp"] == 1 || file["haswebp"] == "1" {
+        "webp"
+    } else if ["jpg", "jpeg", "png", "gif"].contains(&original) {
+        original
+    } else {
+        return Err(invalid("Unsupported image representation"));
+    };
+    Ok(format!(
+        "https://a{}.gold-usergeneratedcontent.net/{}/{number}/{hash}.{extension}",
+        route + 1,
+        routing.path.trim_matches('/')
+    ))
+}
+fn u32_at(bytes: &[u8], offset: usize) -> Result<u32> {
+    Ok(u32::from_be_bytes(
+        bytes
+            .get(offset..offset + 4)
+            .ok_or_else(|| invalid("Truncated binary data"))?
+            .try_into()
+            .unwrap(),
+    ))
+}
+fn u64_at(bytes: &[u8], offset: usize) -> Result<u64> {
+    let value = (u32_at(bytes, offset)? as u64) << 32 | u32_at(bytes, offset + 4)? as u64;
+    if value > 9_007_199_254_740_991 {
+        return Err(invalid("Binary address exceeds range"));
+    }
+    Ok(value)
+}
+pub fn nozomi(bytes: &[u8]) -> Result<Vec<u32>> {
+    if bytes.len() % 4 != 0 {
+        return Err(invalid("Unaligned Nozomi data"));
+    }
+    bytes
+        .chunks_exact(4)
+        .map(|v| {
+            let id = i32::from_be_bytes(v.try_into().unwrap());
+            if id <= 0 {
+                Err(invalid("Invalid gallery identifier"))
+            } else {
+                Ok(id as u32)
+            }
+        })
+        .collect()
+}
+fn segment(value: &str, colon: bool) -> Result<String> {
+    let value = value.replace('_', " ").trim().to_lowercase();
+    if value.is_empty()
+        || value.len() > 100
+        || value.contains("..")
+        || !value.bytes().all(|c| {
+            c.is_ascii_lowercase()
+                || c.is_ascii_digit()
+                || b" .+'-".contains(&c)
+                || (colon && c == b':')
+        })
+    {
+        return Err(error("Invalid search term", "invalidSearchTerm"));
+    }
+    Ok(encode_segment(&value).replace("%3A", ":"))
+}
+async fn ids(
+    context: &Context,
+    language: &str,
+    term: Option<&str>,
+    sort: &str,
+) -> Result<Vec<u32>> {
+    let language = segment(language, false)?;
+    let url = if let Some(term) = term {
+        if let Some((namespace, value)) = term.split_once(':') {
+            let (area, tag) = if matches!(namespace, "male" | "female") {
+                ("tag", term)
+            } else {
+                (namespace, value)
+            };
+            if namespace == "language" || value.contains(':') {
+                return Err(error("Invalid namespaced term", "invalidSearchTerm"));
+            }
+            format!(
+                "{STATIC}/n/{}/{}-{language}.nozomi",
+                segment(area, false)?,
+                segment(tag, true)?
+            )
+        } else {
+            return title_ids(context, &term.replace('_', " ")).await;
+        }
+    } else if let Some(period) = sort.strip_prefix("popular-") {
+        format!(
+            "{STATIC}/n/popular/{}-{language}.nozomi",
+            segment(period, false)?
+        )
+    } else if sort == "date-published" {
+        format!("{STATIC}/n/date/published-{language}.nozomi")
+    } else {
+        format!("{STATIC}/n/index-{language}.nozomi")
+    };
+    let key = format!("hitomi:nozomi:{url}");
+    let mut ticket = context.cache_read(&key, Some(300.0)).await?;
+    if ticket["hit"] == true && (ticket["available"] != false || sort == "random") {
+        let cached = ticket["value"]
+            .as_array()
+            .ok_or_else(|| invalid("Invalid cached IDs"))?
+            .iter()
+            .map(|v| {
+                v.as_u64()
+                    .filter(|v| *v > 0 && *v <= i32::MAX as u64)
+                    .map(|v| v as u32)
+                    .ok_or_else(|| invalid("Invalid cached identifier"))
+            })
+            .collect::<Result<Vec<u32>>>();
+        if let Ok(ids) = cached {
+            return Ok(ids);
+        }
+        context
+            .call("cache", json!({"operation":"remove","key":key}))
+            .await?;
+        ticket = context.cache_read(&key, Some(300.0)).await?;
+    }
+    let response = request(context, &url, None, false).await?;
+    if status(&response) == 404 {
+        return Ok(vec![]);
+    }
+    let mime = response["mimeType"]
+        .as_str()
+        .unwrap_or_else(|| header(&response, "content-type"))
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim();
+    if status(&response) != 200
+        || !["", "application/octet-stream", "application/x-nozomi"].contains(&mime)
+    {
+        return Err(invalid("Invalid Nozomi representation"));
+    }
+    let result = nozomi(&bytes(&response)?)?;
+    if ticket["available"] != false || sort == "random" {
+        context.cache_write(&key, &ticket, &json!(result)).await?;
+    }
+    Ok(result)
+}
+async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
+    let mut result = vec![];
+    for chunk in ids.chunks(4) {
+        let cards = futures::future::join_all(
+            chunk
+                .iter()
+                .map(|id| async move { work(&gallery(context, &json!(id)).await?) }),
+        )
+        .await;
+        result.extend(cards.into_iter().collect::<Result<Vec<_>>>()?);
+    }
+    Ok(result)
+}
+fn validate_range(response: &Value, start: u64, end: u64, length: u64) -> Result<u64> {
+    if !["", "identity"].contains(&header(response, "content-encoding")) {
+        return Err(invalid("Compressed byte range"));
+    }
+    let captures = Regex::new(r"^bytes ([0-9]+)-([0-9]+)/([0-9]+)$")
+        .unwrap()
+        .captures(header(response, "content-range"))
+        .ok_or_else(|| invalid("Missing byte range"))?;
+    let first = captures[1]
+        .parse::<u64>()
+        .map_err(|_| invalid("Invalid byte range"))?;
+    let last = captures[2]
+        .parse::<u64>()
+        .map_err(|_| invalid("Invalid byte range"))?;
+    let total = captures[3]
+        .parse::<u64>()
+        .map_err(|_| invalid("Invalid byte range"))?;
+    if first != start
+        || last < first
+        || last > end
+        || total <= last
+        || last - first + 1 != length
+        || total > 9_007_199_254_740_991
+    {
+        return Err(invalid("Inconsistent byte range"));
+    }
+    Ok(total)
+}
+#[derive(Debug)]
+pub struct Node {
+    keys: Vec<Vec<u8>>,
+    data: Vec<(u64, u64)>,
+    children: Vec<u64>,
+}
+pub fn decode_node(bytes: &[u8]) -> Result<Node> {
+    let count = u32_at(bytes, 0)? as usize;
+    if count > 16 {
+        return Err(invalid("Invalid B-tree key count"));
+    }
+    let mut offset = 4;
+    let mut keys = vec![];
+    for _ in 0..count {
+        let length = u32_at(bytes, offset)? as usize;
+        offset += 4;
+        if !(1..=32).contains(&length) {
+            return Err(invalid("Invalid B-tree key"));
+        }
+        keys.push(
+            bytes
+                .get(offset..offset + length)
+                .ok_or_else(|| invalid("Truncated B-tree key"))?
+                .to_vec(),
+        );
+        offset += length;
+    }
+    if keys.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(invalid("Unordered B-tree keys"));
+    }
+    if u32_at(bytes, offset)? as usize != count {
+        return Err(invalid("B-tree data count mismatch"));
+    }
+    offset += 4;
+    let mut data = vec![];
+    for _ in 0..count {
+        let address = u64_at(bytes, offset)?;
+        let length = u32_at(bytes, offset + 8)? as u64;
+        if length == 0 || length > 100_000_000 {
+            return Err(invalid("Invalid B-tree data length"));
+        }
+        data.push((address, length));
+        offset += 12;
+    }
+    let mut children = vec![];
+    for _ in 0..17 {
+        children.push(u64_at(bytes, offset)?);
+        offset += 8;
+    }
+    Ok(Node {
+        keys,
+        data,
+        children,
+    })
+}
+async fn index_bytes(
+    context: &Context,
+    version: &str,
+    suffix: &str,
+    address: u64,
+    length: u64,
+) -> Result<Vec<u8>> {
+    let key = format!("hitomi:index:{version}:{suffix}:{address}:{length}");
+    let value = context
+        .remember(
+            &key,
+            None,
+            async {
+                let response = request(
+                    context,
+                    &format!("{STATIC}/galleriesindex/galleries.{version}.{suffix}"),
+                    Some((address, address + length - 1)),
+                    false,
+                )
+                .await?;
+                let received = bytes(&response)?;
+                let received = if status(&response) == 200 {
+                    received
+                        .get(address as usize..(address + length) as usize)
+                        .map(|v| v.to_vec())
+                        .ok_or_else(|| invalid("Incomplete index representation"))?
+                } else {
+                    if status(&response) != 206 || received.len() as u64 != length {
+                        return Err(invalid("Invalid index byte range"));
+                    }
+                    validate_range(&response, address, address + length - 1, length)?;
+                    received
+                };
+                Ok(json!(STANDARD.encode(received)))
+            },
+            |value| {
+                let decoded = STANDARD
+                    .decode(text(value))
+                    .map_err(|_| invalid("Invalid cached index"))?;
+                if decoded.len() as u64 != length {
+                    return Err(invalid("Invalid cached index length"));
+                }
+                if suffix == "index" {
+                    decode_node(&decoded)?;
+                } else {
+                    let count = u32_at(&decoded, 0)? as usize;
+                    if count == 0 || decoded.len() != count * 4 + 4 {
+                        return Err(invalid("Malformed title index data"));
+                    }
+                    nozomi(&decoded[4..])?;
+                }
+                Ok(())
+            },
+        )
+        .await?;
+    STANDARD
+        .decode(text(&value))
+        .map_err(|_| invalid("Invalid index encoding"))
+}
+async fn title_ids(context: &Context, term: &str) -> Result<Vec<u32>> {
+    let version = cached_text(
+        context,
+        "hitomi:index-version",
+        &format!("{STATIC}/galleriesindex/version"),
+        1800.0,
+    )
+    .await?
+    .trim()
+    .to_owned();
+    if version.is_empty() || version.len() > 20 || !version.bytes().all(|v| v.is_ascii_digit()) {
+        return Err(invalid("Invalid index version"));
+    }
+    let digest = Sha256::digest(term.as_bytes());
+    let key = &digest[..4];
+    let mut address = 0;
+    for _ in 0..64 {
+        let node = decode_node(&index_bytes(context, &version, "index", address, 464).await?)?;
+        let position = node.keys.partition_point(|value| value.as_slice() < key);
+        if position < node.keys.len() && node.keys[position] == key {
+            let (address, length) = node.data[position];
+            let bytes = index_bytes(context, &version, "data", address, length).await?;
+            let count = u32_at(&bytes, 0)? as usize;
+            if count == 0 || count > 10_000_000 || bytes.len() != count * 4 + 4 {
+                return Err(invalid("Malformed title index data"));
+            }
+            return nozomi(&bytes[4..]);
+        }
+        if node.children.iter().all(|v| *v == 0) {
+            return Ok(vec![]);
+        }
+        address = node.children[position];
+        if address == 0 {
+            return Err(invalid("Invalid B-tree child"));
+        }
+    }
+    Err(invalid("B-tree depth exceeded"))
+}
+async fn search(context: &Context, args: &Value) -> Result<Value> {
+    validate_search(&filters(), args)?;
+    let page = page(args, 100_000)?;
+    let sort = args["sort"].as_str().unwrap_or("newest");
+    let mut raw = text(args.get("query").unwrap_or(&args["text"]))
+        .trim()
+        .to_lowercase();
+    for selection in args["selections"].as_array().into_iter().flatten() {
+        raw.push_str(&format!(
+            " {}{}:{}",
+            if selection["polarity"] == "exclude" {
+                "-"
+            } else {
+                ""
+            },
+            text(&selection["fieldID"]),
+            text(&selection["value"])
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join("_")
+        ));
+    }
+    let raw = raw.trim();
+    if !raw.is_empty() && raw.bytes().all(|v| v.is_ascii_digit()) {
+        if page > 1 {
+            return Ok(json!({"items":[],"metadata":null}));
+        }
+        return Ok(json!({"items":[work(&gallery(context,&json!(raw)).await?)?],"metadata":null}));
+    }
+    let mut language = "english".to_owned();
+    let mut positive = vec![];
+    let mut negative = vec![];
+    for term in raw.split_whitespace() {
+        if let Some(lang) = term.strip_prefix("language:") {
+            if !LANGUAGES.contains(&lang) {
+                return Err(error("Unsupported language", "invalidSearchTerm"));
+            }
+            language = lang.into();
+        } else if let Some(term) = term.strip_prefix('-') {
+            if term.is_empty() {
+                return Err(error("Empty negative term", "invalidSearchTerm"));
+            }
+            negative.push(term);
+        } else {
+            positive.push(term);
+        }
+    }
+    if positive.is_empty()
+        && negative.is_empty()
+        && sort != "random"
+        && context
+            .cache_read("hitomi:cache-capability", Some(300.0))
+            .await?["available"]
+            == false
+    {
+        let path = if let Some(period) = sort.strip_prefix("popular-") {
+            format!("popular/{period}")
+        } else if sort == "date-published" {
+            "date/published".into()
+        } else {
+            "index".into()
+        };
+        let start = (page - 1) * 100;
+        let response = request(
+            context,
+            &format!("{STATIC}/n/{path}-{language}.nozomi"),
+            Some((start, start + 99)),
+            false,
+        )
+        .await?;
+        if status(&response) == 404 {
+            return Ok(json!({"items":[],"metadata":null}));
+        }
+        let mime = response["mimeType"]
+            .as_str()
+            .unwrap_or_else(|| header(&response, "content-type"))
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim();
+        if !["", "application/octet-stream", "application/x-nozomi"].contains(&mime) {
+            return Err(invalid("Invalid Nozomi representation"));
+        }
+        let bytes = bytes(&response)?;
+        let (ids, has_next) = if status(&response) == 206 {
+            let total = validate_range(&response, start, start + 99, bytes.len() as u64)?;
+            if total % 4 != 0 || bytes.len() % 4 != 0 {
+                return Err(invalid("Unaligned Nozomi range"));
+            }
+            (nozomi(&bytes)?, start + (bytes.len() as u64) < total)
+        } else {
+            let all = nozomi(&bytes)?;
+            (
+                all.iter()
+                    .skip(start as usize / 4)
+                    .take(25)
+                    .copied()
+                    .collect(),
+                start as usize / 4 + 25 < all.len(),
+            )
+        };
+        return Ok(
+            json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"page":page+1})} else {Value::Null}}),
+        );
+    }
+    let mut result = if let Some(term) = positive.first() {
+        ids(context, &language, Some(term), sort).await?
+    } else {
+        ids(context, &language, None, sort).await?
+    };
+    for term in positive.iter().skip(1) {
+        let allowed: HashSet<_> = ids(context, &language, Some(term), sort)
+            .await?
+            .into_iter()
+            .collect();
+        result.retain(|id| allowed.contains(id));
+    }
+    for term in negative {
+        let blocked: HashSet<_> = ids(context, &language, Some(term), sort)
+            .await?
+            .into_iter()
+            .collect();
+        result.retain(|id| !blocked.contains(id));
+    }
+    if !positive.is_empty() && sort != "random" {
+        let allowed: HashSet<_> = result.into_iter().collect();
+        result = ids(context, &language, None, sort)
+            .await?
+            .into_iter()
+            .filter(|v| allowed.contains(v))
+            .collect();
+    }
+    let mut seed = 0u32;
+    if sort == "random" {
+        seed = if page == 1 {
+            context.now().await?["random"].as_u64().unwrap_or(1) as u32
+        } else {
+            args.get("metadata")
+                .or(args.get("cursor"))
+                .and_then(|v| v["randomSeed"].as_u64())
+                .filter(|v| *v > 0 && *v <= u32::MAX as u64)
+                .ok_or_else(|| invalid("Hitomi.la random pagination seed is invalid"))?
+                as u32
+        };
+        let mut state = seed;
+        for index in (1..result.len()).rev() {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let target = ((state as u64 * (index + 1) as u64) >> 32) as usize;
+            result.swap(index, target);
+        }
+    }
+    let start = (page as usize - 1) * 25;
+    let items = cards(
+        context,
+        &result
+            .iter()
+            .skip(start)
+            .take(25)
+            .copied()
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+    Ok(
+        json!({"items":items,"metadata":if start+25<result.len() {let mut value=json!({"page":page+1});if sort=="random" {value["randomSeed"]=json!(seed);}value} else {Value::Null}}),
+    )
+}
+pub fn run(context: Context, method: String, mut args: Value) -> Operation {
+    Box::pin(async move {
+        match method.as_str() {
+            "initialize" | "invalidateCache" => Ok(Value::Null),
+            "settings" => Ok(json!({"id":"settings","title":"Hitomi.la","fields":[]})),
+            "searchFilters" => Ok(filters()),
+            "discoverSections" => Ok(json!([{"id":"latest","title":"Catalog (English)","type":3}])),
+            "search" | "discover" => {
+                if method == "discover" {
+                    let section = args["sectionId"]
+                        .as_str()
+                        .or(args["section"]["id"].as_str())
+                        .unwrap_or("latest");
+                    if !matches!(section, "latest" | "popular") {
+                        return Err(error("Unknown section", "invalidSection"));
+                    }
+                    if args["sort"].is_null() {
+                        args["sort"] = json!(if section == "popular" {
+                            "popular-week"
+                        } else {
+                            "newest"
+                        });
+                    }
+                }
+                search(&context, &args).await
+            }
+            "details" => work(&gallery(&context, &args).await?),
+            "installments" => {
+                let id = id(args.get("workId").unwrap_or(&args["id"]))?;
+                let source = if args["files"].as_array().is_some_and(|v| !v.is_empty()) {
+                    args
+                } else {
+                    work(&gallery(&context, &json!(id)).await?)?
+                };
+                Ok(
+                    json!([{"installmentId":format!("gallery:{id}"),"workId":id,"langCode":source["language"],"number":1,"volume":1,"title":"Gallery","publishDate":source["publishedAt"],"files":source["files"]}]),
+                )
+            }
+            "imagePages" => {
+                let id = id(args.get("workId").unwrap_or(&json!(
+                    text(&args["installmentId"]).trim_start_matches("gallery:")
+                )))?;
+                let source = if args["files"].as_array().is_some_and(|v| !v.is_empty()) {
+                    args
+                } else {
+                    work(&gallery(&context, &json!(id)).await?)?
+                };
+                let routing = routing(&context).await?;
+                let pages: Vec<String> = source["files"]
+                    .as_array()
+                    .ok_or_else(|| invalid("Missing files"))?
+                    .iter()
+                    .map(|f| page_url(f, &routing))
+                    .collect::<Result<_>>()?;
+                if pages
+                    .iter()
+                    .filter_map(|v| {
+                        url::Url::parse(v)
+                            .ok()
+                            .map(|u| u.origin().ascii_serialization())
+                    })
+                    .collect::<HashSet<_>>()
+                    .len()
+                    > 16
+                {
+                    return Err(invalid("Too many image origins"));
+                }
+                Ok(json!({"id":format!("gallery:{id}"),"workId":id,"pages":pages}))
+            }
+            "imagePageContent" => {
+                let url = url::Url::parse(text(args.get("url").unwrap_or(&args["pageURL"])))
+                    .map_err(|_| invalid("Invalid image URL"))?;
+                if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some()
+                {
+                    return Err(invalid("Image URLs require HTTPS without credentials"));
+                }
+                let cover = url.host_str() == Some("atn.gold-usergeneratedcontent.net")
+                    && Regex::new(r"^/avifbigtn/[0-9a-f]/[0-9a-f]{2}/[0-9a-f]{64}\.avif$")
+                        .unwrap()
+                        .is_match(url.path());
+                if !cover {
+                    let pattern = Regex::new(
+                        r"^/([A-Za-z0-9._/-]+)/([0-9]+)/([0-9a-f]{64})\.(avif|webp|gif|jpe?g|png)$",
+                    )
+                    .unwrap();
+                    let captures = pattern
+                        .captures(url.path())
+                        .ok_or_else(|| invalid("Invalid image path"))?;
+                    let number = number(&captures[3]);
+                    if captures[2] != number.to_string() {
+                        return Err(invalid("Invalid image hash route"));
+                    }
+                    let routing = routing(&context).await?;
+                    let expected = format!(
+                        "https://a{}.gold-usergeneratedcontent.net",
+                        routing
+                            .overrides
+                            .get(&number)
+                            .copied()
+                            .unwrap_or(routing.default)
+                            + 1
+                    );
+                    if url.origin().ascii_serialization() != expected
+                        || captures[1] != *routing.path.trim_matches('/')
+                    {
+                        return Err(error("Invalid Hitomi.la image URL", "invalidIdentifier"));
+                    }
+                }
+                let response = request(&context, url.as_str(), None, true).await?;
+                successful(&response)?;
+                image(&response)
+            }
+            "searchSuggestions" => {
+                let field = args["fieldID"].as_str().unwrap_or("global");
+                if field != "global" && !FIELDS.iter().any(|(id, _)| *id == field) {
+                    return Err(error("Unknown suggestion field", "invalidSearchTerm"));
+                }
+                let query = text(&args["query"]).trim();
+                if query.is_empty() {
+                    return Ok(json!([]));
+                }
+                let key = format!("hitomi:suggestions:{field}:{query}");
+                let values = context
+                    .remember(
+                        &key,
+                        Some(300.0),
+                        async {
+                            let mut prefix = query.to_owned();
+                            loop {
+                                let segments = prefix
+                                    .chars()
+                                    .map(|c| {
+                                        encode_segment(match c {
+                                            ' ' => "_",
+                                            '/' => "slash",
+                                            '.' => "dot",
+                                            _ => return encode_segment(&c.to_string()),
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("/");
+                                let response = request(
+                                    &context,
+                                    &format!("https://tagindex.hitomi.la/{field}/{segments}.json"),
+                                    None,
+                                    false,
+                                )
+                                .await?;
+                                if status(&response) == 404 {
+                                    if prefix.chars().count() <= 2 {
+                                        return Ok(json!([]));
+                                    }
+                                    prefix.pop();
+                                    continue;
+                                }
+                                let bytes = bytes(&response)?;
+                                if bytes.len() > 256 * 1024 {
+                                    return Err(invalid("Suggestions too large"));
+                                }
+                                return serde_json::from_slice::<Value>(&bytes)
+                                    .map_err(|_| invalid("Malformed suggestions"));
+                            }
+                        },
+                        |v| {
+                            let values = v
+                                .as_array()
+                                .ok_or_else(|| invalid("Malformed suggestion list"))?;
+                            for value in values.iter().take(100) {
+                                if value.as_array().is_none()
+                                    || text(&value[0]).trim().is_empty()
+                                    || !value[2].is_string()
+                                {
+                                    return Err(invalid("Malformed suggestion"));
+                                }
+                            }
+                            Ok(())
+                        },
+                    )
+                    .await?;
+                let mut result = vec![];
+                for value in values
+                    .as_array()
+                    .ok_or_else(|| invalid("Malformed suggestion list"))?
+                    .iter()
+                    .take(100)
+                {
+                    if value.as_array().is_none()
+                        || text(&value[0]).trim().is_empty()
+                        || !value[2].is_string()
+                    {
+                        return Err(invalid("Malformed suggestion"));
+                    }
+                    let namespace = match text(&value[2]) {
+                        "tags" => "tag",
+                        "artists" => "artist",
+                        "groups" => "group",
+                        "parody" | "parodys" => "series",
+                        "characters" => "character",
+                        "languages" => "language",
+                        "types" => "type",
+                        v => v,
+                    };
+                    if FIELDS.iter().any(|(id, _)| *id == namespace) {
+                        result.push(json!({"fieldID":namespace,"value":value[0],"title":value[0],"subtitle":format!("{} galleries",value[1])}));
+                    }
+                }
+                Ok(suggestions(&args, result))
+            }
+            "updates" => Ok(json!({"items":[],"metadata":null})),
+            "managedCollections" => Ok(json!([])),
+            _ => Err(error("Unsupported operation", "unsupportedOperation")),
+        }
+    })
+}
+export_extension!("HitomiLA", "content", run);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn routing_is_data_not_code() {
+        let route=routing_assignment("var gg={b:'route/',m:function(g){var o=0;switch(g){case 1:case 2:o=1;break;}return o;}}").unwrap();
+        assert_eq!(route.overrides[&1], 1);
+        assert!(routing_assignment("gg={b:'../',m:function(g){var o=0;}}").is_err());
+        assert!(gallery_assignment("var galleryinfo={}; alert(1)").is_err());
+    }
+    #[test]
+    fn binary_data_is_bounded() {
+        assert_eq!(nozomi(&[0, 0, 0, 1]).unwrap(), vec![1]);
+        assert!(nozomi(&[0xff, 0xff, 0xff, 0xff]).is_err());
+        assert!(decode_node(&[0, 0, 0, 17]).is_err());
+    }
+}

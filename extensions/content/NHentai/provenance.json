@@ -2,8 +2,11 @@
   "schemaVersion": 1,
   "sourceOwned": true,
   "id": "NHentai",
-  "releaseVersion": "0.4.1",
-  "generator": "scripts/build-source-owned.mjs",
+  "releaseVersion": "2.0.0",
+  "runtime": "wasm",
+  "compiler": "Rust 1.90.0",
+  "target": "wasm32-unknown-unknown",
+  "entryPoint": "extensions/content/NHentai/src/lib.rs",
   "upstream": {
     "repository": "https://github.com/Aidoku-Community/sources",
     "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
@@ -14,23 +17,40 @@
     ],
     "licenseChoice": "Apache-2.0"
   },
-  "modules": [
-    {
-      "file": "scripts/source-owned-runtime/05-metadata-cache.js",
-      "sha256": "6a1651eb964ace22e71b2a5c647a481dd22cc5efe7d2b177f81d5cb9959fc0c9"
+  "previousJavaScriptRelease": {
+    "schemaVersion": 1,
+    "sourceOwned": true,
+    "id": "NHentai",
+    "releaseVersion": "0.4.1",
+    "generator": "scripts/build-source-owned.mjs",
+    "upstream": {
+      "repository": "https://github.com/Aidoku-Community/sources",
+      "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
+      "paths": [
+        "sources/multi.nhentai/src/lib.rs",
+        "sources/multi.nhentai/src/models.rs",
+        "sources/multi.nhentai/src/home.rs"
+      ],
+      "licenseChoice": "Apache-2.0"
     },
-    {
-      "file": "scripts/source-owned-runtime/15-search.js",
-      "sha256": "3c3a30507d0da1dc18295cf1dfe706ac302aad50e57d4162571bd1cfb25fdd46"
-    },
-    {
-      "file": "extensions/content/NHentai/src/10-core.js",
-      "sha256": "edca33ad562e71c11cbd2dfc6e248e658878b2068ffe53bf6828c8fc02e5174c"
-    },
-    {
-      "file": "extensions/content/NHentai/src/20-extension.js",
-      "sha256": "606cdf8726f4e48d07306b3426d235468193ad7450dbb993ea67aae001d5655e"
-    }
-  ],
-  "generatedMainSHA256": "aae323784fd321a6adee36deb5b956979ebe5cfda4505c85a48e55768aaf4101"
+    "modules": [
+      {
+        "file": "scripts/source-owned-runtime/05-metadata-cache.js",
+        "sha256": "6a1651eb964ace22e71b2a5c647a481dd22cc5efe7d2b177f81d5cb9959fc0c9"
+      },
+      {
+        "file": "scripts/source-owned-runtime/15-search.js",
+        "sha256": "3c3a30507d0da1dc18295cf1dfe706ac302aad50e57d4162571bd1cfb25fdd46"
+      },
+      {
+        "file": "extensions/content/NHentai/src/10-core.js",
+        "sha256": "edca33ad562e71c11cbd2dfc6e248e658878b2068ffe53bf6828c8fc02e5174c"
+      },
+      {
+        "file": "extensions/content/NHentai/src/20-extension.js",
+        "sha256": "606cdf8726f4e48d07306b3426d235468193ad7450dbb993ea67aae001d5655e"
+      }
+    ],
+    "generatedMainSHA256": "aae323784fd321a6adee36deb5b956979ebe5cfda4505c85a48e55768aaf4101"
+  }
 }

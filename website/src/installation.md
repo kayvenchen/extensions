@@ -27,6 +27,8 @@ Open the [Extension List](/extension-list) to browse content and tracker extensi
 
 Use Get to install an extension and Update when the repository publishes a newer version. Repository refresh checks `versioning.json` and never installs an extension automatically.
 
-On the website, choose the arrow beside an extension to open Manko's installation review for that extension. Manko asks you to confirm before installing. The arrow opens the app review rather than downloading a file in your browser.
+Native WASM extensions require a WASM-capable Manko release. Existing JavaScript installations require an explicit **Update**; repair does not migrate them. AniList, MyAnimeList, HitomiLA and NHentai retain their source IDs. Other removed sources stay unavailable while Manko retains their library content, history and completed downloads.
+
+On the website, choose the arrow beside an extension to open its catalog entry in Manko. Select Get or Update inside Manko to install it. The arrow never installs code or downloads a module in your browser automatically.
 
 Entries marked `serviceUnavailable` or `retired` do not expose an install action. Other legacy or omitted availability values remain installable.

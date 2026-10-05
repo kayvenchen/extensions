@@ -2,93 +2,10 @@
   "repositoryURL": "https://k800k.github.io/extensions/dist/v1/stable/",
   "sources": [
     {
-      "id": "AllPornComic",
-      "name": "AllPornComic",
-      "description": "Extension that pulls content from allporncomic.com.",
-      "version": "1.0.0-alpha.17",
-      "icon": "icons/AllPornComic.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "ADULT",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Inkdex",
-          "website": "https://inkdex.github.io",
-          "github": "https://github.com/inkdex"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=AllPornComic",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/AllPornComic/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/AllPornComic",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/AllPornComic/1.0.0-alpha.17/main.js",
-        "sha256": "67428413b12ed3bafbae56ae18e2ad8eb7f3be807f759071c4b52858a2d2c6ff",
-        "size": 368444,
-        "allowedHTTPSHosts": [
-          "allporncomic.com"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "67428413b12ed3bafbae56ae18e2ad8eb7f3be807f759071c4b52858a2d2c6ff",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/madara-extensions",
-        "branch": "0.9/stable",
-        "commit": "7f5046d09025d99cfe8bb633b9d55b721739fb3f",
-        "sourcePath": "src/AllPornComic",
-        "sourceObjectSHA": "133d37d43f03ed02538e6afd6e91f7d48eadb288",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "0be983e76ce203fa793513470186706b8308a0ee8f74477a7d2b6889d57dddc5"
-      }
-    },
-    {
       "id": "AniList",
       "name": "AniList",
       "description": "Track manga progress and lists with AniList.",
-      "version": "1.0.1",
+      "version": "2.0.0",
       "icon": "icons/AniList.svg",
       "languages": [
         "multi"
@@ -124,10 +41,11 @@
         ]
       },
       "extension": {
-        "apiVersion": "1.1",
-        "scriptURL": "sources/AniList/1.0.1/main.js",
-        "sha256": "b2b76e5821ab2baf539a644db16252b65ce44492f339264c35dabec76cc1998f",
-        "size": 5951,
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/AniList/2.0.0/main.wasm",
+        "sha256": "5af585eba46c78665ba5bca56228ec57f508f08df5813988ee71881413808e1b",
+        "size": 1248451,
         "allowedHTTPSHosts": [
           "anilist.co",
           "graphql.anilist.co",
@@ -137,9 +55,12 @@
           "oauth2Implicit"
         ]
       },
-      "scriptSHA256": "b2b76e5821ab2baf539a644db16252b65ce44492f339264c35dabec76cc1998f",
+      "moduleSHA256": "5af585eba46c78665ba5bca56228ec57f508f08df5813988ee71881413808e1b",
       "license": "Apache-2.0",
-      "compatibility": null,
+      "compatibility": {
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
+      },
       "upstream": {
         "repository": "https://github.com/inkdex/tracker-extensions",
         "branch": "0.9/stable",
@@ -149,184 +70,10 @@
       }
     },
     {
-      "id": "Atsumaru",
-      "name": "Atsumaru",
-      "description": "Extension that pulls content from atsu.moe.",
-      "version": "1.0.0-alpha.27",
-      "icon": "icons/Atsumaru.ico",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Lucifers Circle",
-          "website": null,
-          "github": null
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=Atsumaru",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Atsumaru/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Atsumaru",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/Atsumaru/1.0.0-alpha.27/main.js",
-        "sha256": "0f6fe77615b8f33a949c80cf4e51acf3168781a3526489ccbea472817ae00148",
-        "size": 84816,
-        "allowedHTTPSHosts": [
-          "atsu.moe",
-          "cdn.atsu.moe"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "0f6fe77615b8f33a949c80cf4e51acf3168781a3526489ccbea472817ae00148",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/Atsumaru",
-        "sourceObjectSHA": "7e74710a82d3843a51479a133fe35a9f002dd59e",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "32e6daf809f6b3bf37be6d7d08a20b85355443697cab7224bb98987bedc29a0e"
-      }
-    },
-    {
-      "id": "Comix",
-      "name": "Comix",
-      "description": "Extension that pulls content from Comix.to.",
-      "version": "1.0.0-alpha.54",
-      "icon": "icons/Comix.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Catta1997",
-          "website": null,
-          "github": "https://github.com/Catta1997"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=Comix",
-      "rightsDeclaration": "Licensed under Apache-2.0.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Comix/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Comix",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state",
-          "webExecution"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.1",
-        "scriptURL": "sources/Comix/1.0.0-alpha.54/main.js",
-        "sha256": "2c90f4367603b41072674340f6e4a9e15271cb728636de9e87cf82823239f59b",
-        "size": 60048,
-        "allowedHTTPSHosts": [
-          "comix.to",
-          "static.comix.to",
-          "*.wowpic1.store",
-          "*.wowpic2.store",
-          "*.wowpic3.store",
-          "*.wowpic4.store",
-          "*.wowpic5.store",
-          "*.wowpic6.store",
-          "*.wowpic7.store",
-          "*.wowpic8.store",
-          "*.wowpic9.store"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "2c90f4367603b41072674340f6e4a9e15271cb728636de9e87cf82823239f59b",
-      "license": "Apache-2.0",
-      "compatibility": {
-        "adapter": "source-owned-js",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Comix protected API discovery requires API 1.1 web execution."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/Aidoku-Community/sources",
-        "branch": "main",
-        "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
-        "sourcePath": "sources/en.comix",
-        "relationship": "algorithmReference"
-      }
-    },
-    {
       "id": "HitomiLA",
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
-      "version": "0.3.2",
+      "version": "2.0.0",
       "icon": "icons/HitomiLA.svg",
       "languages": [
         "en",
@@ -383,10 +130,11 @@
         ]
       },
       "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/HitomiLA/0.3.2/main.js",
-        "sha256": "20cc38076bec803c253b4b03df06b1a9a0d20c3386358f235af71499e314817e",
-        "size": 57054,
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/HitomiLA/2.0.0/main.wasm",
+        "sha256": "d00de54c7e3ef148d99fd023080287084cf578b7592db7408171dd4365b1b6fc",
+        "size": 1622700,
         "allowedHTTPSHosts": [
           "hitomi.la",
           "ltn.gold-usergeneratedcontent.net",
@@ -399,14 +147,16 @@
           "none"
         ]
       },
-      "scriptSHA256": "20cc38076bec803c253b4b03df06b1a9a0d20c3386358f235af71499e314817e",
+      "moduleSHA256": "d00de54c7e3ef148d99fd023080287084cf578b7592db7408171dd4365b1b6fc",
       "license": "Apache-2.0",
       "compatibility": {
-        "adapter": "source-owned-js",
+        "adapter": "native-rust-wasm",
         "status": "supported",
         "scope": "core",
         "note": null,
-        "limitations": []
+        "limitations": [],
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
       },
       "upstream": {
         "repository": "https://github.com/Aidoku-Community/sources",
@@ -417,750 +167,10 @@
       }
     },
     {
-      "id": "LNori",
-      "name": "LNori",
-      "description": "Extension that pulls content from LNori.",
-      "version": "1.0.0-alpha.5",
-      "icon": "icons/LNori.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "acquisition",
-        "browse",
-        "details",
-        "discover",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Catta1997",
-          "website": null,
-          "github": "https://github.com/Catta1997"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=LNori",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/LNori/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/LNori",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.1",
-        "scriptURL": "sources/LNori/1.0.0-alpha.5/main.js",
-        "sha256": "80d68ffb1e081be6da31ac13db0ad137bf400b7a3c145416706c780827a2acda",
-        "size": 347937,
-        "allowedHTTPSHosts": [
-          "cdn.lnori.com",
-          "lnori.com"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "80d68ffb1e081be6da31ac13db0ad137bf400b7a3c145416706c780827a2acda",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/LNori",
-        "sourceObjectSHA": "2bcdc0bf7f11fd043c62e76e0a6d0f2a6abae027",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "cb18ab61cbe6829337ac00a3e2fc591dba9628139aa42f42ef00f4749e834a1a"
-      }
-    },
-    {
-      "id": "MadaraDex",
-      "name": "MadaraDex",
-      "description": "Extension that pulls content from madaradex.org.",
-      "version": "1.0.0-alpha.18",
-      "icon": "icons/MadaraDex.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "ADULT",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Inkdex",
-          "website": "https://inkdex.github.io",
-          "github": "https://github.com/inkdex"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MadaraDex",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MadaraDex/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MadaraDex",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MadaraDex/1.0.0-alpha.18/main.js",
-        "sha256": "20a0844aac0808d934d85a83cbfe172d169b4009b42aec1ef87b0b7ab57bbbe0",
-        "size": 369612,
-        "allowedHTTPSHosts": [
-          "madaradex.org"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "20a0844aac0808d934d85a83cbfe172d169b4009b42aec1ef87b0b7ab57bbbe0",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/madara-extensions",
-        "branch": "0.9/stable",
-        "commit": "7f5046d09025d99cfe8bb633b9d55b721739fb3f",
-        "sourcePath": "src/MadaraDex",
-        "sourceObjectSHA": "3bb6f06eb8d3c14ba4866ed063d1f96b81acd1f0",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "5fffd6eec45b1180232598b3cc75b0ba562bd1b77ce0f5c595fecc819f5540db"
-      }
-    },
-    {
-      "id": "MangaBat",
-      "name": "MangaBat",
-      "description": "Extension that pulls content from mangabat.com.",
-      "version": "1.0.0-alpha.16",
-      "icon": "icons/MangaBat.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Saw_6",
-          "website": null,
-          "github": null
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaBat",
-      "rightsDeclaration": "Licensed under Apache-2.0.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaBat/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaBat",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MangaBat/1.0.0-alpha.16/main.js",
-        "sha256": "bbd39de310556183db9cd0abea6e4bb3e804f23bfa9bcf98e7a9d0d5c25f7ffe",
-        "size": 37729,
-        "allowedHTTPSHosts": [
-          "img-r1.2xstorage.com",
-          "img-r2.2xstorage.com",
-          "imgs-2.2xstorage.com",
-          "www.mangabats.com"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "bbd39de310556183db9cd0abea6e4bb3e804f23bfa9bcf98e7a9d0d5c25f7ffe",
-      "license": "Apache-2.0",
-      "compatibility": {
-        "adapter": "source-owned-js",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": []
-      },
-      "upstream": {
-        "repository": "https://github.com/Aidoku-Community/sources",
-        "branch": "main",
-        "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
-        "sourcePath": "sources/en.mangabat",
-        "relationship": "algorithmReference"
-      }
-    },
-    {
-      "id": "MangaDemon",
-      "name": "MangaDemon",
-      "description": "Extension that pulls content from demonicscans.org.",
-      "version": "1.0.0-alpha.18",
-      "icon": "icons/MangaDemon.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "samipmainali",
-          "website": null,
-          "github": "https://github.com/samipmainali"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaDemon",
-      "rightsDeclaration": "Licensed under Apache-2.0.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaDemon/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaDemon",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MangaDemon/1.0.0-alpha.18/main.js",
-        "sha256": "caf575871221139dacf6c254f466ed9b12adbb3e364093cf23142d18931e4fe4",
-        "size": 19402,
-        "allowedHTTPSHosts": [
-          "cdn.demoniclibs.com",
-          "demoniclibs.com",
-          "demonicscans.org",
-          "librarydm.com",
-          "mangareadon.org",
-          "readermc.org"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "caf575871221139dacf6c254f466ed9b12adbb3e364093cf23142d18931e4fe4",
-      "license": "Apache-2.0",
-      "compatibility": {
-        "adapter": "source-owned-js",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": []
-      },
-      "upstream": {
-        "repository": "https://github.com/Aidoku-Community/sources",
-        "branch": "main",
-        "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
-        "sourcePath": "sources/en.mangademon",
-        "relationship": "algorithmReference"
-      }
-    },
-    {
-      "id": "MangaDex",
-      "name": "MangaDex",
-      "description": "Extension that pulls content from mangadex.org.",
-      "version": "1.0.0-alpha.30",
-      "icon": "icons/MangaDex.png",
-      "languages": [
-        "multi"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search",
-        "updates"
-      ],
-      "developers": [
-        {
-          "name": "Inkdex",
-          "website": "https://inkdex.github.io",
-          "github": "https://github.com/inkdex"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaDex",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaDex/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaDex",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MangaDex/1.0.0-alpha.30/main.js",
-        "sha256": "cf09dcfb1da3653ccc7d5138da779268fd1dcc704773a103c630007063aeb47f",
-        "size": 431551,
-        "allowedHTTPSHosts": [
-          "*.mangadex.network",
-          "api.mangadex.org",
-          "mangadex.org",
-          "uploads.mangadex.org"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "cf09dcfb1da3653ccc7d5138da779268fd1dcc704773a103c630007063aeb47f",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/MangaDex",
-        "sourceObjectSHA": "5915c36a5cd9f54eee649e3b9e8da67383660a14",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "46f1532d3ec4582f8789a8b9c41840dfbaeee933319bc462c795c4f8fbf5e716"
-      }
-    },
-    {
-      "id": "MangaDot",
-      "name": "MangaDot",
-      "description": "Extension that pulls content from MangaDot.net",
-      "version": "1.0.0-alpha.7",
-      "icon": "icons/MangaDot.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Catta1997",
-          "website": null,
-          "github": "https://github.com/Catta1997"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaDot",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaDot/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaDot",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MangaDot/1.0.0-alpha.7/main.js",
-        "sha256": "3baa66ac272bff110975912265139027f553458655578c202561c4f074fc03e8",
-        "size": 96463,
-        "allowedHTTPSHosts": [
-          "mangadot.net"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "3baa66ac272bff110975912265139027f553458655578c202561c4f074fc03e8",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/MangaDot",
-        "sourceObjectSHA": "7c2e0861581a77b741287e611630faa624703953",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "5b98135cc1f5f494c2780085e8a9a3686509ec3af87ea46da2bc62d8cf792eeb"
-      }
-    },
-    {
-      "id": "MangaFox",
-      "name": "MangaFox",
-      "description": "Extension that pulls content from fanfox.net.",
-      "version": "1.0.0-alpha.15",
-      "icon": "icons/MangaFox.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "MATURE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search",
-        "updates"
-      ],
-      "developers": [
-        {
-          "name": "Egwau",
-          "website": null,
-          "github": null
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaFox",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaFox/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaFox",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MangaFox/1.0.0-alpha.15/main.js",
-        "sha256": "d79c8a0e6fc9e540c7d2b65298f072ad6407acefccbc807d9b5af3a50cdbd944",
-        "size": 366845,
-        "allowedHTTPSHosts": [
-          "fanfox.net"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "d79c8a0e6fc9e540c7d2b65298f072ad6407acefccbc807d9b5af3a50cdbd944",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/MangaFox",
-        "sourceObjectSHA": "a6520af7a0bb595916a7de1c7138788ed9254ee6",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "4326a7e64c9a45fd90b46e9b70a417038e7a31e5496edbc7cacc60d6289b1f11"
-      }
-    },
-    {
-      "id": "Mangago",
-      "name": "Mangago",
-      "description": "Extension that pulls content from mangago.me.",
-      "version": "1.0.0-alpha.3",
-      "icon": "icons/Mangago.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "ADULT",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Popmango",
-          "website": null,
-          "github": "https://github.com/PoppingMangoSources"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=Mangago",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Mangago/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Mangago",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/Mangago/1.0.0-alpha.3/main.js",
-        "sha256": "c56db9352b623192a05bd6f3d952fe1ae3f61fab0824238157240db8f30c5625",
-        "size": 378416,
-        "allowedHTTPSHosts": [
-          "www.mangago.me",
-          "www.mangago.zone",
-          "www.youhim.me"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "c56db9352b623192a05bd6f3d952fe1ae3f61fab0824238157240db8f30c5625",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/Mangago",
-        "sourceObjectSHA": "c3c44370a643b1a822c956c426f4c1dc319e1edd",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "8589c51e2dfdb317756e626615157d8949ff0b0b5357f2e95c6a65909e250db3"
-      }
-    },
-    {
-      "id": "MangaKakalot",
-      "name": "MangaKakalot",
-      "description": "Extension that pulls content from mangakakalot.gg.",
-      "version": "1.0.0-alpha.16",
-      "icon": "icons/MangaKakalot.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Saw_6",
-          "website": null,
-          "github": null
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaKakalot",
-      "rightsDeclaration": "Licensed under Apache-2.0.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaKakalot/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaKakalot",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/MangaKakalot/1.0.0-alpha.16/main.js",
-        "sha256": "3d6e5010c188da4712d726b51ddc142c5dac5fe3a5947dfd1479552850bc636d",
-        "size": 37757,
-        "allowedHTTPSHosts": [
-          "img-r1.2xstorage.com",
-          "img-r2.2xstorage.com",
-          "imgs-2.2xstorage.com",
-          "www.mangakakalot.gg"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "3d6e5010c188da4712d726b51ddc142c5dac5fe3a5947dfd1479552850bc636d",
-      "license": "Apache-2.0",
-      "compatibility": {
-        "adapter": "source-owned-js",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": []
-      },
-      "upstream": {
-        "repository": "https://github.com/Aidoku-Community/sources",
-        "branch": "main",
-        "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
-        "sourcePath": "sources/en.mangakakalot",
-        "relationship": "algorithmReference"
-      }
-    },
-    {
       "id": "MyAnimeList",
       "name": "MyAnimeList",
       "description": "Track manga progress and lists with MyAnimeList.",
-      "version": "1.0.1",
+      "version": "2.0.0",
       "icon": "icons/MyAnimeList.svg",
       "languages": [
         "multi"
@@ -1196,10 +206,11 @@
         ]
       },
       "extension": {
-        "apiVersion": "1.1",
-        "scriptURL": "sources/MyAnimeList/1.0.1/main.js",
-        "sha256": "65baccbaa78ff1d19fbe1a513b283cdd0c17f0284832b3dfbdae57f57300abbd",
-        "size": 6128,
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MyAnimeList/2.0.0/main.wasm",
+        "sha256": "8c8410738685d48f566732471ffccc406ea9156409b378ae7fe34534cfddcdd3",
+        "size": 432619,
         "allowedHTTPSHosts": [
           "api.myanimelist.net",
           "cdn.myanimelist.net",
@@ -1209,16 +220,19 @@
           "oauth2PKCE"
         ]
       },
-      "scriptSHA256": "65baccbaa78ff1d19fbe1a513b283cdd0c17f0284832b3dfbdae57f57300abbd",
+      "moduleSHA256": "8c8410738685d48f566732471ffccc406ea9156409b378ae7fe34534cfddcdd3",
       "license": "Apache-2.0",
-      "compatibility": null,
+      "compatibility": {
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
+      },
       "upstream": null
     },
     {
       "id": "NHentai",
       "name": "nHentai",
       "description": "Anonymous discovery, search, gallery details, and page reading for nhentai.net.",
-      "version": "0.4.1",
+      "version": "2.0.0",
       "icon": "icons/NHentai.svg",
       "languages": [
         "multi",
@@ -1268,10 +282,11 @@
         ]
       },
       "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/NHentai/0.4.1/main.js",
-        "sha256": "aae323784fd321a6adee36deb5b956979ebe5cfda4505c85a48e55768aaf4101",
-        "size": 34198,
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/NHentai/2.0.0/main.wasm",
+        "sha256": "6e2897b9d8dc71ab09b3e918edc2343cc1c590c17b6468c290633235d2ed14f6",
+        "size": 513088,
         "allowedHTTPSHosts": [
           "nhentai.net",
           "i.nhentai.net",
@@ -1281,266 +296,22 @@
           "none"
         ]
       },
-      "scriptSHA256": "aae323784fd321a6adee36deb5b956979ebe5cfda4505c85a48e55768aaf4101",
+      "moduleSHA256": "6e2897b9d8dc71ab09b3e918edc2343cc1c590c17b6468c290633235d2ed14f6",
       "license": "Apache-2.0",
       "compatibility": {
-        "adapter": "source-owned-js",
+        "adapter": "native-rust-wasm",
         "status": "supported",
         "scope": "core",
         "note": null,
-        "limitations": []
+        "limitations": [],
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
       },
       "upstream": {
         "repository": "https://github.com/Aidoku-Community/sources",
         "branch": "main",
         "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
         "sourcePath": "sources/multi.nhentai",
-        "relationship": "algorithmReference"
-      }
-    },
-    {
-      "id": "RoyalRoad",
-      "name": "RoyalRoad",
-      "description": "Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.",
-      "version": "1.0.0-alpha.5",
-      "icon": "icons/RoyalRoad.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "acquisition",
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Inkdex",
-          "website": null,
-          "github": "https://github.com/Inkdex"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=RoyalRoad",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/RoyalRoad/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/RoyalRoad",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.1",
-        "scriptURL": "sources/RoyalRoad/1.0.0-alpha.5/main.js",
-        "sha256": "d27e40d556dd22b9b3e094e63b52d94c8d0124af0ede0e360f10d0500e0e5126",
-        "size": 364733,
-        "allowedHTTPSHosts": [
-          "www.royalroad.com",
-          "www.royalroadcdn.com"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "d27e40d556dd22b9b3e094e63b52d94c8d0124af0ede0e360f10d0500e0e5126",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/RoyalRoad",
-        "sourceObjectSHA": "16115bc0f7f220933b3c125b7775faee55ec29ae",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "c32e475ae316fee4dfa0de01ece8b6462e769d6639dfd2c6a322b3c99ec48049"
-      }
-    },
-    {
-      "id": "Webtoon",
-      "name": "Webtoon",
-      "description": "Extension that pulls content from webtoons.com.",
-      "version": "1.0.0-alpha.21",
-      "icon": "icons/Webtoon.png",
-      "languages": [
-        "multi"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "Yves Pa",
-          "website": null,
-          "github": "https://github.com/YvesPa"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=Webtoon",
-      "rightsDeclaration": "Licensed under GPL-3.0-or-later.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Webtoon/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Webtoon",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/Webtoon/1.0.0-alpha.21/main.js",
-        "sha256": "0bb2341ad56d0c704a590e035d4817c21e0564d1ebd98de784cacc85e7d65433",
-        "size": 358274,
-        "allowedHTTPSHosts": [
-          "m.webtoons.com",
-          "swebtoon-phinf.pstatic.net",
-          "webtoon-phinf.pstatic.net",
-          "www.webtoons.com"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "0bb2341ad56d0c704a590e035d4817c21e0564d1ebd98de784cacc85e7d65433",
-      "license": "GPL-3.0-or-later",
-      "compatibility": {
-        "adapter": "paperback-0.9",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": [
-          "Structured metadata search is limited to fields verified against this pinned provider snapshot.",
-          "Paperback genre-query discover cards have no equivalent manko API v1 discover-item representation."
-        ]
-      },
-      "upstream": {
-        "repository": "https://github.com/inkdex/general-extensions",
-        "branch": "0.9/stable",
-        "commit": "b03d78c35dfb0ad305660dd3aa8618a006cbd73f",
-        "sourcePath": "src/Webtoon",
-        "sourceObjectSHA": "b948f30dba43373318bcf15c79f59fdaedd1d644",
-        "relationship": "auditedSnapshotNotRecordedBuildInput",
-        "registryCommit": "5514d0bc58cb8edcee06c1c01458c51a7fd43e43",
-        "registryArtifactSHA256": "785d79492c240f3a50c9cc7159d41b416f878c364c2b0443efb6f5668cac5bc8"
-      }
-    },
-    {
-      "id": "WeebCentral",
-      "name": "WeebCentral",
-      "description": "Extension that pulls content from weebcentral.com.",
-      "version": "1.0.0-alpha.27",
-      "icon": "icons/WeebCentral.png",
-      "languages": [
-        "en"
-      ],
-      "contentRating": "SAFE",
-      "capabilities": [
-        "browse",
-        "challengeHandoff",
-        "cookies",
-        "details",
-        "discover",
-        "imageSequence",
-        "installments",
-        "interceptors",
-        "search"
-      ],
-      "developers": [
-        {
-          "name": "GabrielCWT",
-          "website": null,
-          "github": "https://github.com/GabrielCWT"
-        }
-      ],
-      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=WeebCentral",
-      "rightsDeclaration": "Licensed under Apache-2.0.",
-      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/WeebCentral/LICENSE",
-      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
-      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/WeebCentral",
-      "sourceRevision": "main",
-      "entryType": "extension",
-      "kind": "content",
-      "availability": "approvalRequired",
-      "permissions": {
-        "values": [
-          "challengeHandoff",
-          "cookies",
-          "network",
-          "rateLimiting",
-          "redactedLogging",
-          "secureState",
-          "state"
-        ]
-      },
-      "extension": {
-        "apiVersion": "1.0",
-        "scriptURL": "sources/WeebCentral/1.0.0-alpha.27/main.js",
-        "sha256": "4729121419a6c183cb05349e10027b8a99517144d7f444462ae591d261608378",
-        "size": 21683,
-        "allowedHTTPSHosts": [
-          "temp.compsci88.com",
-          "weebcentral.com"
-        ],
-        "authenticationModes": [
-          "none"
-        ]
-      },
-      "scriptSHA256": "4729121419a6c183cb05349e10027b8a99517144d7f444462ae591d261608378",
-      "license": "Apache-2.0",
-      "compatibility": {
-        "adapter": "source-owned-js",
-        "status": "supported",
-        "scope": "core",
-        "note": null,
-        "limitations": []
-      },
-      "upstream": {
-        "repository": "https://github.com/Aidoku-Community/sources",
-        "branch": "main",
-        "commit": "1faa9c5cfbf67af7cd18a302045a8d093e35867f",
-        "sourcePath": "sources/en.weebcentral",
         "relationship": "algorithmReference"
       }
     }

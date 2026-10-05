@@ -4,13 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { validateModule } from "../lib/wasm.mjs";
 import { createServer } from "node:http";
+import { homedir } from "node:os";
 import { mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { API_VERSION, assertExtensionPackage } from "../lib/contracts.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = resolve(process.env.MANKO_EXTENSION_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), "../../.."));
 const EXTENSION_ROOTS = {
   content: join(ROOT, "extensions", "content"),
   tracker: join(ROOT, "extensions", "tracker")
@@ -39,44 +42,54 @@ function neutralSVG(id, rating) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="${id} placeholder"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></linearGradient></defs><rect width="256" height="256" rx="48" fill="url(#g)"/><path d="M59 52h138v152H59z" fill="#fff" opacity=".16"/><text x="128" y="148" text-anchor="middle" font-family="system-ui,sans-serif" font-size="68" font-weight="700" fill="#fff">${initials}</text></svg>\n`;
 }
 
-function scaffoldSource(id, kind) {
-  const unavailable = `const unavailable = () => { const error = new Error("${id} is not implemented"); error.name = "ExtensionUnavailableError"; throw error; };`;
-  if (kind === "tracker") {
-    return `${APACHE_HEADER}\n${unavailable}\ndefineTrackerExtension({\n  id: ${JSON.stringify(id)},\n  apiVersion: "1.1",\n  authentication: () => ({ mode: "none" }),\n  search: unavailable,\n  progress: unavailable,\n  update: unavailable,\n  collections: unavailable\n});\n`;
-  }
-  return `${APACHE_HEADER}\n${unavailable}\ndefineContentExtension({\n  id: ${JSON.stringify(id)},\n  apiVersion: "1.0",\n  initialize: unavailable,\n  settings: () => ({ id: "settings", title: ${JSON.stringify(id)}, fields: [] }),\n  discoverSections: unavailable,\n  discover: unavailable,\n  searchFilters: () => ({ id: "search", title: "Search", fields: [] }),\n  search: unavailable,\n  details: unavailable,\n  installments: unavailable,\n  imagePages: unavailable,\n  imagePageContent: unavailable,\n  updates: unavailable,\n  managedCollections: unavailable\n});\n`;
+async function createScaffold(entry) {
+  if (!safeID(entry.id)) throw new Error("Unsafe extension id");
+  const kind = entry.kind || "content";
+  if (!EXTENSION_ROOTS[kind]) throw new Error("Unsupported extension kind");
+  const directory = extensionDirectory(kind, entry.id);
+  try { await readFile(join(directory, "extension.json")); throw new Error("Extension already exists"); } catch (error) { if (error.code !== "ENOENT") throw error; }
+  const crate = "manko-" + entry.id.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  await mkdir(join(directory, "src"), {recursive:true});
+  await writeJSON(join(directory,"extension.json"), {
+    id:entry.id,name:entry.name || entry.id,description:"Open-source manko extension.",kind,
+    apiVersion:API_VERSION,runtime:"wasm",crate,version:"0.1.0",language:"en",languages:["en"],
+    contentRating:"SAFE",availability:"serviceUnavailable",capabilities:[],permissions:["network"],
+    allowedHTTPSHosts:["blocked.manko.invalid"],authenticationModes:["none"],
+    developers:[{name:"manko Extension Contributors"}],iconFile:"icon.svg",license:"Apache-2.0"
+  });
+  await writeFile(join(directory,"Cargo.toml"), `[package]
+name = "${crate}"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+[lib]
+crate-type = ["cdylib", "rlib"]
+[dependencies]
+manko-sdk.workspace = true
+serde_json.workspace = true
+`);
+  await writeFile(join(directory,"src","lib.rs"), `// SPDX-License-Identifier: Apache-2.0
+use manko_sdk::{Context, Operation, error};
+use serde_json::Value;
+fn run(_: Context, _: String, _: Value) -> Operation { Box::pin(async { Err(error("Not implemented", "unsupportedOperation")) }) }
+manko_sdk::export_extension!("${entry.id}", "${kind}", run);
+`);
+  await writeFile(join(directory,"icon.svg"),neutralSVG(entry.id,"SAFE"));
+  await writeFile(join(directory,"LICENSE"),await readFile(join(ROOT,"LICENSE")));
+  const workspace = await readFile(join(ROOT,"Cargo.toml"),"utf8");
+  await writeFile(join(ROOT,"Cargo.toml"),workspace.replace("members = [",'members = [\n  "extensions/'+kind+'/'+entry.id+'",'));
 }
 
-async function createScaffold(entry) {
-  if (!safeID(entry.id)) throw new Error(`Unsafe extension id: ${entry.id}`);
-  const kind = entry.kind || "content";
-  if (!EXTENSION_ROOTS[kind]) throw new Error(`Unsupported extension kind: ${kind}`);
-  const directory = extensionDirectory(kind, entry.id);
-  await mkdir(join(directory, "tests"), { recursive: true });
-  const metadata = {
-    id: entry.id,
-    name: entry.name || entry.id,
-    description: `Open-source manko ${kind} extension scaffold.`,
-    kind,
-    apiVersion: API_VERSION,
-    version: "0.1.0",
-    language: entry.language || "en",
-    languages: [entry.language || "en"],
-    contentRating: entry.contentRating || "SAFE",
-    availability: "serviceUnavailable",
-    capabilities: kind === "tracker" ? ["authentication", "trackerSearch", "progress", "trackerCollections"] : [],
-    permissions: kind === "tracker" ? ["authenticationHandoff", "network", "secureState"] : ["network"],
-    allowedHTTPSHosts: ["blocked.manko.invalid"],
-    authenticationModes: ["none"],
-    developers: [{ name: "manko Extension Contributors" }],
-    iconFile: "icon.svg",
-    license: "Apache-2.0"
-  };
-  await writeJSON(join(directory, "extension.json"), metadata);
-  await writeFile(join(directory, "main.js"), scaffoldSource(entry.id, kind));
-  await writeFile(join(directory, "icon.svg"), neutralSVG(entry.id, metadata.contentRating));
-  const relativeHelper = "../../../../packages/cli/lib/contracts.mjs";
-  await writeFile(join(directory, "tests", "contract.test.mjs"), `${APACHE_HEADER}\nimport test from "node:test";\nimport { dirname, resolve } from "node:path";\nimport { fileURLToPath } from "node:url";\nimport { assertExtensionPackage } from ${JSON.stringify(relativeHelper)};\nconst directory = resolve(dirname(fileURLToPath(import.meta.url)), "..");\ntest(${JSON.stringify(`${entry.id} is a valid ${kind} extension package`)}, async () => {\n  await assertExtensionPackage(directory, ${JSON.stringify(kind)}, ${JSON.stringify(entry.id)});\n});\n`);
+function compile() {
+  const flags = [
+    "-C", "link-arg=--max-memory=134217728",
+    `--remap-path-prefix=${ROOT}=/manko-extensions`,
+    `--remap-path-prefix=${resolve(process.env.CARGO_HOME || join(homedir(), ".cargo"))}=/cargo`
+  ];
+  execFileSync(process.env.CARGO || "cargo", ["build","--workspace","--lib","--examples","--release","--locked","--target","wasm32-unknown-unknown"], {
+    cwd:ROOT, stdio:"inherit",
+    env:{...process.env,CARGO_ENCODED_RUSTFLAGS:flags.join("\u001f")}
+  });
 }
 
 async function seedCatalog() {
@@ -169,10 +182,11 @@ async function buildArtifacts() {
   for (const { kind, id } of entries) {
     const directory = extensionDirectory(kind, id);
     const metadata = await assertExtensionPackage(directory, kind, id);
-    const script = await readFile(join(directory, "main.js"));
-    const scriptURL = `sources/${id}/${metadata.version}/main.js`;
-    await mkdir(dirname(join(output, scriptURL)), { recursive: true });
-    await writeFile(join(output, scriptURL), script);
+    const script = await readFile(join(ROOT,"target","wasm32-unknown-unknown","release",`${metadata.crate.replaceAll("-","_")}.wasm`));
+    validateModule(script,metadata);
+    const moduleURL = `sources/${id}/${metadata.version}/main.wasm`;
+    await mkdir(dirname(join(output, moduleURL)), { recursive: true });
+    await writeFile(join(output, moduleURL), script);
     const iconExtension = extname(metadata.iconFile).toLowerCase();
     const iconName = `${id}${iconExtension}`;
     iconNames.add(iconName);
@@ -200,7 +214,8 @@ async function buildArtifacts() {
       permissions: { values: metadata.permissions },
       extension: {
         apiVersion: metadata.apiVersion,
-        scriptURL,
+        runtime: "wasm",
+        moduleURL,
         sha256: sha256(script),
         size: script.length,
         allowedHTTPSHosts: metadata.allowedHTTPSHosts,
@@ -211,7 +226,7 @@ async function buildArtifacts() {
     catalog.push({
       ...source,
       developers: metadata.developers,
-      scriptSHA256: source.extension.sha256,
+      moduleSHA256: source.extension.sha256,
       license: metadata.license || "Apache-2.0",
       compatibility: metadata.compatibility || null,
       upstream: metadata.upstream || null
@@ -235,7 +250,7 @@ async function buildArtifacts() {
   const counts = Object.fromEntries(Object.keys(EXTENSION_ROOTS).map(kind => [kind, entries.filter(entry => entry.kind === kind).length]));
   await writeJSON(join(ROOT, "inventory", "registry.json"), { entries });
   await writeJSON(join(ROOT, "inventory", "status.json"), { counts, entries: sources.map(source => ({ id: source.id, kind: source.kind, availability: source.availability })) });
-  console.log(`Bundled ${sources.length} deterministic extension script${sources.length === 1 ? "" : "s"}.`);
+  console.log(`Bundled ${sources.length} deterministic WASM module${sources.length === 1 ? "" : "s"}.`);
   return manifest;
 }
 
@@ -244,10 +259,10 @@ async function publish() {
   const manifestBytes = await readFile(join(output, "versioning.json"));
   const current = JSON.parse(manifestBytes);
   for (const source of current.sources) {
-    const bytes = await readFile(join(output, source.extension.scriptURL));
+    const bytes = await readFile(join(output, source.extension.moduleURL));
     if (bytes.length !== source.extension.size || sha256(bytes) !== source.extension.sha256) throw new Error(`Script hash mismatch: ${source.id}`);
   }
-  console.log(`publish dry-run: ${current.sources.length} script hash${current.sources.length === 1 ? "" : "es"} and compatibility metadata validated`);
+  console.log(`publish dry-run: ${current.sources.length} module hash${current.sources.length === 1 ? "" : "es"} and compatibility metadata validated`);
 }
 
 async function createNew() {
@@ -262,7 +277,7 @@ async function createNew() {
 
 async function serve() {
   const port = Number(option("--port") || 4173);
-  const contentTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json", ".xml": "application/xml", ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon" };
+  const contentTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json", ".wasm": "application/wasm", ".xml": "application/xml", ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon" };
   const server = createServer(async (request, response) => {
     try {
       let pathname = decodeURIComponent(new URL(request.url, `http://localhost:${port}`).pathname);
@@ -302,7 +317,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     case "new": await createNew(); break;
     case "check": await check(); break;
     case "test": await check(); break;
-    case "bundle": await buildArtifacts(); break;
+    case "compile": compile(); break;
+    case "bundle": compile(); await buildArtifacts(); break;
     case "publish": await publish(); break;
     case "serve": await serve(); break;
     default:

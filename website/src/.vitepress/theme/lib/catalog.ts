@@ -54,7 +54,7 @@ export interface CatalogSource {
   sourceKey: string;
   extension: {
     apiVersion?: string;
-    scriptURL?: string;
+    moduleURL?: string;
     size?: number;
   } | null;
 }
@@ -241,7 +241,7 @@ export function normalizeCatalog(
       extension: extensionRaw
         ? {
             apiVersion: stringValue(extensionRaw.apiVersion) || undefined,
-            scriptURL: httpURL(extensionRaw.scriptURL, repositoryURL) || undefined,
+            moduleURL: httpURL(extensionRaw.moduleURL, repositoryURL) || undefined,
             size: typeof extensionRaw.size === "number" ? extensionRaw.size : undefined,
           }
         : null,

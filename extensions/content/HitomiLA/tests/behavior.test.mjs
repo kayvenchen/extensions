@@ -7,7 +7,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MINIMAL_AVIF_BYTES, MINIMAL_GIF_BYTES, MINIMAL_WEBP_BYTES, loadContentExtension, runtimeResponse, metadataCacheFixture } from "../../test-runtime.mjs";
 
-const mainPath = resolve(dirname(fileURLToPath(import.meta.url)), "../main.js");
+const mainPath = resolve(dirname(fileURLToPath(import.meta.url)), "../main.wasm");
 const manifest = JSON.parse(await readFile(resolve(dirname(mainPath), "extension.json"), "utf8"));
 
 test("HitomiLA retains only the legacy bounded page-host declarations", () => {
@@ -351,6 +351,18 @@ test("HitomiLA uses current indexed suggestions, including typo recovery and nam
   assert.equal(loaded.extension.searchFilters().fields.find(field=>field.id === "language").maximumSelections,1);
 });
 
+test("HitomiLA never persists malformed suggestion rows and retries corrected responses", async () => {
+  let count = 0;
+  const loaded = await loadContentExtension(mainPath, request => runtimeResponse({
+    url: request.url,
+    text: JSON.stringify(++count === 1 ? [["",42,"tag"]] : [["glasses",42,"tag"]])
+  }), {cache: metadataCacheFixture()});
+  await assert.rejects(() => loaded.extension.searchSuggestions({query:"glass"}), /Malformed suggestion/);
+  assert.equal((await loaded.extension.searchSuggestions({query:"glass"}))[0].value,"glasses");
+  await loaded.extension.searchSuggestions({query:"glass"});
+  assert.equal(count,2);
+});
+
 test("HitomiLA applies language overrides, namespaces, intersections, and negative terms", async () => {
   const indexURLs = [];
   const loaded = await loadContentExtension(mainPath, request => {
@@ -500,11 +512,11 @@ test("HitomiLA resolves title indexes through ordinary HTTP when native image re
     if (url.pathname === "/galleriesindex/version") return runtimeResponse({ url: request.url, text: "123456\n" });
     if (url.pathname.endsWith(".index")) {
       ranges.push(request.headers.Range);
-      return runtimeResponse({ url: request.url, status: 206, bytes: node });
+      return runtimeResponse({ url: request.url, status: 206, headers: {"Content-Range":"bytes 0-463/1000"}, bytes: node });
     }
     if (url.pathname.endsWith(".data")) {
       ranges.push(request.headers.Range);
-      return runtimeResponse({ url: request.url, status: 206, bytes: galleryData });
+      return runtimeResponse({ url: request.url, status: 206, headers: {"Content-Range":"bytes 20-27/1000"}, bytes: galleryData });
     }
     if (url.pathname === "/n/index-english.nozomi") return runtimeResponse({ url: request.url, bytes: nozomi([7]) });
     if (url.pathname === "/galleries/7.js") return runtimeResponse({ url: request.url, text: galleryAssignment(7) });
