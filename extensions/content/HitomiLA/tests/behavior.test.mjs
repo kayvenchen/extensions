@@ -121,7 +121,7 @@ test("HitomiLA pages each site index in order for browsing, searching and langua
           assert.equal(third.metadata, null);
           const indexes = loaded.calls.filter(call => call.url.endsWith(".nozomi"));
           assert.ok(indexes.every(call => new URL(call.url).pathname === path));
-          assert.equal(indexes.length, cache ? 1 : 3);
+          assert.equal(indexes.length, 3, "each page requests its bounded byte range");
         }
       }
     }
@@ -232,7 +232,8 @@ test("HitomiLA accepts decoded complete catalogs when the HTTP transport retains
       const loaded = await loadContentExtension(mainPath, request => {
         const path = new URL(request.url).pathname;
         if (path.endsWith(".nozomi")) {
-          assert.equal(request.headers.Range, undefined);
+          assert.match(request.headers.Range, /^bytes=[0-9]+-[0-9]+$/);
+          assert.equal(request.headers["Accept-Encoding"], "identity");
           return runtimeResponse({
             url: request.url, mimeType: "application/x-nozomi",
             headers: { "Content-Encoding": "gzip", "Content-Length": "37" },
@@ -248,7 +249,7 @@ test("HitomiLA accepts decoded complete catalogs when the HTTP transport retains
       const second = await loaded.extension[method]({ ...input, metadata: first.metadata });
       assert.equal(first.items.length, 25, `${method}.${sort}`);
       assert.equal(second.items.length, 25);
-      assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length, 1);
+      assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length, sort === "random" ? 1 : 2);
       const ids = Array.from([...first.items, ...second.items], item => item.workId);
       assert.equal(new Set(ids).size, 50);
     }
@@ -259,7 +260,7 @@ test("HitomiLA decodes ranged Nozomi IDs, limits metadata concurrency, and cache
   let active = 0;
   let maximum = 0;
   let routingRequests = 0;
-  const ids = [1, 2, 3, 4, 5, 6, 7, 8];
+  const ids = Array.from({ length: 25 }, (_, index) => index + 1);
   const loaded = await loadContentExtension(mainPath, async request => {
     const url = new URL(request.url);
     if (url.pathname === "/n/index-english.nozomi") {
@@ -269,7 +270,7 @@ test("HitomiLA decodes ranged Nozomi IDs, limits metadata concurrency, and cache
         url: request.url,
         status: 206,
         mimeType: "application/x-nozomi",
-        headers: { "Content-Range": "bytes 0-31/200" },
+        headers: { "Content-Range": "bytes 0-99/200" },
         bytes: nozomi(ids)
       });
     }
@@ -297,7 +298,7 @@ test("HitomiLA decodes ranged Nozomi IDs, limits metadata concurrency, and cache
   });
 
   const page = await loaded.extension.discover({ sectionId: "latest" });
-  assert.equal(page.items.length, 8);
+  assert.equal(page.items.length, 25);
   assert.equal(page.items[0].type, "work");
   assert.equal(page.items[0].workId, "1");
   assert.equal(page.items[0].imageUrl, `https://atn.gold-usergeneratedcontent.net/avifbigtn/1/00/${gallery(1).files[0].hash}.avif`);
@@ -694,15 +695,18 @@ test("HitomiLA preserves native cover resources, base64 fallbacks, and cache inv
 });
 
 
-test("Hitomi cache-aware pagination shares complete ID lists and metadata across restart", async () => {
+test("Hitomi cache-aware pagination shares bounded ranges and metadata across restart", async () => {
   const cache = metadataCacheFixture();
   const bytes = Buffer.alloc(30 * 4);
   for (let index = 0; index < 30; index++) bytes.writeInt32BE(index + 1, index * 4);
   const responder = request => {
     const url = new URL(request.url);
     if (url.pathname.endsWith(".nozomi")) {
-      assert.equal(request.headers.Range, undefined);
-      return runtimeResponse({url: request.url, mimeType:"application/x-nozomi", bytes});
+      const [, startText, endText] = /^bytes=(\d+)-(\d+)$/.exec(request.headers.Range);
+      const start = Number(startText), end = Math.min(Number(endText), bytes.length - 1);
+      assert.equal(Number(endText) - start + 1, 100);
+      return runtimeResponse({url: request.url, status:206, mimeType:"application/x-nozomi",
+        headers:{"Content-Range":`bytes ${start}-${end}/${bytes.length}`}, bytes:bytes.subarray(start,end+1)});
     }
     const id = /\/galleries\/(\d+)\.js$/.exec(url.pathname)?.[1];
     if (id) return runtimeResponse({url:request.url, text:galleryAssignment(Number(id))});
@@ -713,8 +717,10 @@ test("Hitomi cache-aware pagination shares complete ID lists and metadata across
   const first = await loaded.extension.discover({sectionId:"latest"});
   const second = await loaded.extension.discover({sectionId:"latest", metadata:first.metadata});
   assert.equal(first.items.length,25); assert.equal(second.items.length,5);
-  assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length,1);
+  assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length,2);
   const restarted = await loadContentExtension(mainPath, responder, {cache});
+  await restarted.extension.discover({sectionId:"latest"});
+  assert.equal(restarted.calls.length,0);
   await restarted.extension.details("1");
   assert.equal(restarted.calls.length,0);
   cache.setReload(true);

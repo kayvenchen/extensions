@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "manko-hitomi"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64",
  "futures",
@@ -337,7 +337,7 @@ dependencies = [
 
 [[package]]
 name = "manko-nhentai"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "manko-sdk",
  "serde_json",

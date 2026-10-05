@@ -107,15 +107,13 @@ pub fn media(path: &str, cover: bool) -> Result<String> {
     {
         return Err(error("Invalid media path", "invalidResponse"));
     }
-    Ok(https(
-        &if path.starts_with("https://") {
-            path.to_owned()
-        } else {
-            format!("https://{host}/{relative}")
-        },
-        &[host],
-    )?
-    .to_string())
+    if path.starts_with("https://") {
+        Ok(https(path, &[host])?.to_string())
+    } else {
+        // The authority is ours; validating the relative components avoids
+        // reparsing hundreds of identical HTTPS authorities for each gallery.
+        Ok(format!("https://{host}/{relative}"))
+    }
 }
 fn path(value: &Value) -> &str {
     value.as_str().unwrap_or_else(|| text(&value["path"]))
@@ -226,6 +224,37 @@ pub fn work(gallery: &Value) -> Result<Value> {
     result["workInfo"] = json!({"thumbnailUrl":result["imageUrl"],"synopsis":"","primaryTitle":result["title"],"secondaryTitles":titles(gallery)?.into_iter().skip(1).collect::<Vec<_>>(),"contentRating":"ADULT","status":"completed","artist":tags.get("artist").map(|v| v.join(", ")),"author":creators.join(", "),"searchFacets":facets,"shareUrl":format!("{BASE}/g/{}/",text(&result["id"]))});
     Ok(result)
 }
+fn validate_gallery(gallery: &Value, expected: &str) -> Result<()> {
+    if id(&gallery["id"])? != expected {
+        return Err(error("Gallery identifier mismatch", "invalidResponse"));
+    }
+    id(&gallery["media_id"])?;
+    titles(gallery)?;
+    media(
+        path(gallery.get("cover").unwrap_or(&gallery["thumbnail"])),
+        true,
+    )?;
+    for page in pages(gallery)? {
+        media(path(page), false)?;
+    }
+    Ok(())
+}
+fn pages(gallery: &Value) -> Result<&Vec<Value>> {
+    gallery["pages"]
+        .as_array()
+        .filter(|pages| !pages.is_empty())
+        .ok_or_else(|| error("Gallery pages are missing", "invalidResponse"))
+}
+fn page_paths(gallery: &Value) -> Result<Vec<Value>> {
+    pages(gallery)?
+        .iter()
+        .map(|page| {
+            let path = path(page);
+            media(path, false)?;
+            Ok(json!(path))
+        })
+        .collect()
+}
 async fn gallery(context: &Context, value: &Value) -> Result<Value> {
     let id = id(value)?;
     let key = format!("nhentai:gallery:{id}");
@@ -236,13 +265,7 @@ async fn gallery(context: &Context, value: &Value) -> Result<Value> {
             async {
                 decode_json(&request(context, &format!("{API}/galleries/{id}"), None, false).await?)
             },
-            |value| {
-                if manko_sdk::id(&value["id"])? != id {
-                    return Err(error("Gallery identifier mismatch", "invalidResponse"));
-                }
-                work(value)?;
-                Ok(())
-            },
+            |value| validate_gallery(value, &id),
         )
         .await
 }
@@ -407,7 +430,11 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 let source = if args["pagePaths"].as_array().is_some_and(|v| !v.is_empty()) {
                     args
                 } else {
-                    work(&gallery(&context, &json!(id)).await?)?
+                    let gallery = gallery(&context, &json!(id)).await?;
+                    json!({"pagePaths":page_paths(&gallery)?,"mediaId":gallery["media_id"],
+                        "uploadedAt":gallery["upload_date"].as_i64().map(timestamp).unwrap_or(Value::Null),
+                        "language":gallery["tags"].as_array().into_iter().flatten()
+                            .find(|tag| tag["type"] == "language").map(|tag| text(&tag["name"])).unwrap_or("multi")})
                 };
                 Ok(
                     json!([{"installmentId":format!("gallery:{id}"),"workId":id,"langCode":source["language"],"number":1,"volume":1,"title":"Gallery","publishDate":source["uploadedAt"],"mediaId":source["mediaId"],"pagePaths":source["pagePaths"]}]),
@@ -420,7 +447,7 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 let source = if args["pagePaths"].as_array().is_some_and(|v| !v.is_empty()) {
                     args
                 } else {
-                    work(&gallery(&context, &json!(id)).await?)?
+                    json!({"pagePaths":page_paths(&gallery(&context, &json!(id)).await?)?})
                 };
                 let pages: Vec<String> = source["pagePaths"]
                     .as_array()
@@ -455,5 +482,16 @@ mod tests {
             media("/galleries/1/1.jpg", false).unwrap(),
             "https://i.nhentai.net/galleries/1/1.jpg"
         );
+    }
+    #[test]
+    fn gallery_validation_does_not_construct_work_facets() {
+        let mut gallery = json!({"id":101,"media_id":"9001","title":{"english":"Sample"},
+            "cover":{"path":"galleries/9001/cover.webp"},"pages":[{"path":"galleries/9001/1.jpg"}],
+            "tags":[{"type":"tag","name":"landscape"}]});
+        validate_gallery(&gallery, "101").unwrap();
+        OBSERVED.with(|observed| assert!(observed.borrow().is_empty()));
+        assert!(validate_gallery(&gallery, "102").is_err());
+        gallery["pages"][0]["path"] = json!("galleries/%2e%2e/page.jpg");
+        assert!(validate_gallery(&gallery, "101").is_err());
     }
 }

@@ -5,7 +5,14 @@ use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashSet};
+use std::sync::LazyLock;
 const STATIC: &str = "https://ltn.gold-usergeneratedcontent.net";
+const INDEX_CHUNK_BYTES: u64 = 16 * 1024;
+static PAGE_HOST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^a(?:[1-9][0-9]{0,2}|1000)\.gold-usergeneratedcontent\.net$").unwrap()
+});
+static GALLERY_PREFIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"^\s*(?:"use strict";\s*)?var\s+galleryinfo\s*=\s*"#).unwrap());
 const LANGUAGES: &[&str] = &[
     "english",
     "japanese",
@@ -67,8 +74,6 @@ async fn request(
 ) -> Result<Value> {
     let parsed = url::Url::parse(url).map_err(|_| invalid("Invalid URL"))?;
     let host = parsed.host_str().unwrap_or("");
-    let page_host =
-        Regex::new(r"^a(?:[1-9][0-9]{0,2}|1000)\.gold-usergeneratedcontent\.net$").unwrap();
     if parsed.scheme() != "https"
         || !parsed.username().is_empty()
         || parsed.password().is_some()
@@ -79,7 +84,7 @@ async fn request(
             "atn.gold-usergeneratedcontent.net",
         ]
         .contains(&host)
-            || page_host.is_match(host))
+            || PAGE_HOST.is_match(host))
     {
         return Err(error("Unexpected image host", "hostNotAllowed"));
     }
@@ -89,7 +94,7 @@ async fn request(
         headers["Accept-Encoding"] = json!("identity");
     }
     let response = context.request(url, "GET", headers, None, image).await?;
-    if status(&response) == 404 {
+    if status(&response) == 404 || (range.is_some() && status(&response) == 416) {
         return Ok(response);
     }
     if !matches!(status(&response), 200 | 206) {
@@ -148,8 +153,7 @@ fn hash(value: &Value) -> Result<&str> {
     Ok(hash)
 }
 pub fn gallery_assignment(source: &str) -> Result<Value> {
-    let prefix = Regex::new(r#"^\s*(?:"use strict";\s*)?var\s+galleryinfo\s*=\s*"#)
-        .unwrap()
+    let prefix = GALLERY_PREFIX
         .find(source)
         .ok_or_else(|| invalid("Malformed gallery assignment"))?;
     serde_json::from_str(source[prefix.end()..].trim().trim_end_matches(';'))
@@ -438,49 +442,91 @@ async fn ids(
     } else {
         format!("{STATIC}/n/index-{language}.nozomi")
     };
-    let key = format!("hitomi:nozomi:{url}");
-    let mut ticket = context.cache_read(&key, Some(300.0)).await?;
-    if ticket["hit"] == true && (ticket["available"] != false || sort == "random") {
-        let cached = ticket["value"]
-            .as_array()
-            .ok_or_else(|| invalid("Invalid cached IDs"))?
-            .iter()
-            .map(|v| {
-                v.as_u64()
-                    .filter(|v| *v > 0 && *v <= i32::MAX as u64)
-                    .map(|v| v as u32)
-                    .ok_or_else(|| invalid("Invalid cached identifier"))
-            })
-            .collect::<Result<Vec<u32>>>();
-        if let Ok(ids) = cached {
-            return Ok(ids);
+    let mut result = vec![];
+    let mut start = 0;
+    loop {
+        let (bytes, total) = nozomi_range(context, &url, start, INDEX_CHUNK_BYTES).await?;
+        result.extend(nozomi(&bytes)?);
+        start += bytes.len() as u64;
+        if start >= total {
+            break;
         }
-        context
-            .call("cache", json!({"operation":"remove","key":key}))
-            .await?;
-        ticket = context.cache_read(&key, Some(300.0)).await?;
-    }
-    let response = request(context, &url, None, false).await?;
-    if status(&response) == 404 {
-        return Ok(vec![]);
-    }
-    let mime = response["mimeType"]
-        .as_str()
-        .unwrap_or_else(|| header(&response, "content-type"))
-        .split(';')
-        .next()
-        .unwrap_or("")
-        .trim();
-    if status(&response) != 200
-        || !["", "application/octet-stream", "application/x-nozomi"].contains(&mime)
-    {
-        return Err(invalid("Invalid Nozomi representation"));
-    }
-    let result = nozomi(&bytes(&response)?)?;
-    if ticket["available"] != false || sort == "random" {
-        context.cache_write(&key, &ticket, &json!(result)).await?;
     }
     Ok(result)
+}
+
+fn cached_nozomi_range(value: &Value, start: u64, length: u64) -> Result<(Vec<u8>, u64)> {
+    let total = value["total"]
+        .as_u64()
+        .ok_or_else(|| invalid("Invalid Nozomi extent"))?;
+    let bytes = STANDARD
+        .decode(text(&value["bytes"]))
+        .map_err(|_| invalid("Invalid cached Nozomi bytes"))?;
+    let expected = total.saturating_sub(start).min(length);
+    if total > 16 * 1024 * 1024 || total % 4 != 0 || bytes.len() as u64 != expected {
+        return Err(invalid("Inconsistent Nozomi extent"));
+    }
+    nozomi(&bytes)?;
+    Ok((bytes, total))
+}
+
+async fn nozomi_range(
+    context: &Context,
+    url: &str,
+    start: u64,
+    length: u64,
+) -> Result<(Vec<u8>, u64)> {
+    let key = format!("hitomi:nozomi-v2:{url}:{start}:{length}");
+    let ticket = context.cache_read(&key, Some(300.0)).await?;
+    if ticket["hit"] == true {
+        if let Ok(range) = cached_nozomi_range(&ticket["value"], start, length) {
+            return Ok(range);
+        }
+    }
+    let end = start + length - 1;
+    let response = request(context, url, Some((start, end)), false).await?;
+    let (data, total) = match status(&response) {
+        404 => (vec![], 0),
+        416 => {
+            let total = header(&response, "content-range")
+                .strip_prefix("bytes */")
+                .and_then(|value| value.parse::<u64>().ok())
+                .ok_or_else(|| invalid("Invalid unsatisfied Nozomi range"))?;
+            if start < total {
+                return Err(invalid("Unexpected unsatisfied Nozomi range"));
+            }
+            (vec![], total)
+        }
+        _ => {
+            let mime = response["mimeType"]
+                .as_str()
+                .unwrap_or_else(|| header(&response, "content-type"))
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .trim();
+            if !["", "application/octet-stream", "application/x-nozomi"].contains(&mime) {
+                return Err(invalid("Invalid Nozomi representation"));
+            }
+            let data = bytes(&response)?;
+            if status(&response) == 206 {
+                let total = validate_range(&response, start, end, data.len() as u64)?;
+                (data, total)
+            } else {
+                if data.len() as u64 > INDEX_CHUNK_BYTES {
+                    return Err(invalid("Nozomi server ignored the byte range"));
+                }
+                let total = data.len() as u64;
+                let first = (start.min(total)) as usize;
+                let last = (start + length).min(total) as usize;
+                (data[first..last].to_vec(), total)
+            }
+        }
+    };
+    let value = json!({"bytes":STANDARD.encode(data),"total":total});
+    let range = cached_nozomi_range(&value, start, length)?;
+    context.cache_write(&key, &ticket, &value).await?;
+    Ok(range)
 }
 async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
     let mut result = vec![];
@@ -499,8 +545,9 @@ fn validate_range(response: &Value, start: u64, end: u64, length: u64) -> Result
     if !["", "identity"].contains(&header(response, "content-encoding")) {
         return Err(invalid("Compressed byte range"));
     }
-    let captures = Regex::new(r"^bytes ([0-9]+)-([0-9]+)/([0-9]+)$")
-        .unwrap()
+    static RANGE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^bytes ([0-9]+)-([0-9]+)/([0-9]+)$").unwrap());
+    let captures = RANGE
         .captures(header(response, "content-range"))
         .ok_or_else(|| invalid("Missing byte range"))?;
     let first = captures[1]
@@ -578,7 +625,7 @@ pub fn decode_node(bytes: &[u8]) -> Result<Node> {
         children,
     })
 }
-async fn index_bytes(
+async fn index_range(
     context: &Context,
     version: &str,
     suffix: &str,
@@ -636,6 +683,32 @@ async fn index_bytes(
     STANDARD
         .decode(text(&value))
         .map_err(|_| invalid("Invalid index encoding"))
+}
+async fn index_bytes(
+    context: &Context,
+    version: &str,
+    suffix: &str,
+    address: u64,
+    length: u64,
+) -> Result<Vec<u8>> {
+    if length > 16 * 1024 * 1024 {
+        return Err(invalid("Index response exceeds resource limit"));
+    }
+    let mut result = Vec::with_capacity(length as usize);
+    while result.len() < length as usize {
+        let offset = result.len() as u64;
+        result.extend(
+            index_range(
+                context,
+                version,
+                suffix,
+                address + offset,
+                (length - offset).min(INDEX_CHUNK_BYTES),
+            )
+            .await?,
+        );
+    }
+    Ok(result)
 }
 async fn title_ids(context: &Context, term: &str) -> Result<Vec<u32>> {
     let version = cached_text(
@@ -722,14 +795,7 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
             positive.push(term);
         }
     }
-    if positive.is_empty()
-        && negative.is_empty()
-        && sort != "random"
-        && context
-            .cache_read("hitomi:cache-capability", Some(300.0))
-            .await?["available"]
-            == false
-    {
+    if positive.is_empty() && negative.is_empty() && sort != "random" {
         let path = if let Some(period) = sort.strip_prefix("popular-") {
             format!("popular/{period}")
         } else if sort == "date-published" {
@@ -738,44 +804,15 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
             "index".into()
         };
         let start = (page - 1) * 100;
-        let response = request(
+        let (bytes, total) = nozomi_range(
             context,
             &format!("{STATIC}/n/{path}-{language}.nozomi"),
-            Some((start, start + 99)),
-            false,
+            start,
+            100,
         )
         .await?;
-        if status(&response) == 404 {
-            return Ok(json!({"items":[],"metadata":null}));
-        }
-        let mime = response["mimeType"]
-            .as_str()
-            .unwrap_or_else(|| header(&response, "content-type"))
-            .split(';')
-            .next()
-            .unwrap_or("")
-            .trim();
-        if !["", "application/octet-stream", "application/x-nozomi"].contains(&mime) {
-            return Err(invalid("Invalid Nozomi representation"));
-        }
-        let bytes = bytes(&response)?;
-        let (ids, has_next) = if status(&response) == 206 {
-            let total = validate_range(&response, start, start + 99, bytes.len() as u64)?;
-            if total % 4 != 0 || bytes.len() % 4 != 0 {
-                return Err(invalid("Unaligned Nozomi range"));
-            }
-            (nozomi(&bytes)?, start + (bytes.len() as u64) < total)
-        } else {
-            let all = nozomi(&bytes)?;
-            (
-                all.iter()
-                    .skip(start as usize / 4)
-                    .take(25)
-                    .copied()
-                    .collect(),
-                start as usize / 4 + 25 < all.len(),
-            )
-        };
+        let ids = nozomi(&bytes)?;
+        let has_next = start + (bytes.len() as u64) < total;
         return Ok(
             json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"page":page+1})} else {Value::Null}}),
         );
@@ -1073,5 +1110,16 @@ mod tests {
         assert_eq!(nozomi(&[0, 0, 0, 1]).unwrap(), vec![1]);
         assert!(nozomi(&[0xff, 0xff, 0xff, 0xff]).is_err());
         assert!(decode_node(&[0, 0, 0, 17]).is_err());
+    }
+    #[test]
+    fn cached_ranges_validate_alignment_and_extent() {
+        let value = json!({"total":104,"bytes":base64::engine::general_purpose::STANDARD.encode([0,0,0,26])});
+        assert_eq!(cached_nozomi_range(&value, 100, 100).unwrap().0.len(), 4);
+        assert!(cached_nozomi_range(&value, 0, 100).is_err());
+        assert!(
+            cached_nozomi_range(&json!({"total":103,"bytes":value["bytes"]}), 100, 100).is_err()
+        );
+        assert!(cached_nozomi_range(&json!({"total":104,"bytes":"/////w=="}), 100, 100).is_err());
+        assert!(cached_nozomi_range(&json!({"total":100,"bytes":""}), 100, 100).is_ok());
     }
 }

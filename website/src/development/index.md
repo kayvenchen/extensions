@@ -22,9 +22,11 @@ Read the [Extension ABI](https://github.com/k800k/extensions/blob/main/ABI.md) f
 
 Guest modules have no imports or WASI access. Use SDK context requests for HTTP, protected storage, metadata caching, time and visible authentication handoff. Domain result types, structured filters, suggestions and detail facets retain the native Manko contract.
 
-Metadata cache reads must be validated. SDK remember coalesces matching loaders through native leases and fences stale writes. Mutable gallery metadata expires after 30 minutes, index lists and suggestions after 5 minutes, routing after 1 minute. Only version-addressed data may use an indefinite lifetime.
+Metadata cache reads must be validated. SDK remember coalesces matching loaders through native leases and fences stale writes. Mutable gallery metadata expires after 30 minutes, binary index ranges and suggestions after 5 minutes, routing after 1 minute. Only version-addressed data may use an indefinite lifetime. Hitomi browsing uses 100-byte page ranges; larger filtered indexes use binary chunks no larger than 16 KiB, with alignment and Content-Range validation.
 
 Increment versions whenever executable bytes change. Preserve IDs, attribution, provenance and source links. CI compiles Rust and validates compiled-WASM fixtures, catalog integrity and the website. Pages builds artifacts pinned to the deployment source revision.
+
+CI verifies hashes, byte counts and ABI metadata against both committed and rebuilt artifacts. It compares generated catalog metadata without requiring cross-platform WASM byte identity. Manko's native tests also exercise compiled provider fixtures in WasmKit with the production execution limits.
 
 ## Release Coordination
 

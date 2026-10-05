@@ -16,7 +16,8 @@ test("Catalog contains exactly the four WASM replacements with matching digests"
   assert.deepEqual(manifest.sources.map(entry=>entry.id),ids);
   assert.deepEqual((await readdir(resolve(root,"dist/v1/stable/sources"))).sort(),ids);
   for(const entry of manifest.sources){
-    assert.equal(entry.version,"2.0.0");
+    const metadata=JSON.parse(await readFile(resolve(root,"extensions",entry.kind,entry.id,"extension.json")));
+    assert.equal(entry.version,metadata.version);
     assert.equal(entry.extension.runtime,"wasm");
     assert.equal(entry.extension.apiVersion,"2.0");
     assert.equal(entry.extension.scriptURL,undefined);
