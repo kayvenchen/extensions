@@ -17,6 +17,15 @@ static PAGE_HOST: LazyLock<Regex> = LazyLock::new(|| {
 });
 static GALLERY_PREFIX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"^\s*(?:"use strict";\s*)?var\s+galleryinfo\s*=\s*"#).unwrap());
+static ROUTING_START: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\bgg\s*=\s*\{").unwrap());
+static ROUTING_PATH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\bb\s*:\s*["']([A-Za-z0-9._/-]+)["']"#).unwrap());
+static ROUTING_DEFAULT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bvar\s+o\s*=\s*([0-9]{1,3})\s*;").unwrap());
+static ROUTING_SWITCH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bswitch\s*\(\s*g\s*\)\s*\{").unwrap());
+static ROUTING_RETURN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*return\s+o\s*;").unwrap());
 const LANGUAGES: &[&str] = &[
     "english",
     "japanese",
@@ -128,9 +137,6 @@ async fn cached_text(context: &Context, key: &str, url: &str, ttl: f64) -> Resul
                     .ok_or_else(|| invalid("Malformed cached text"))?;
                 if let Some(id) = key.strip_prefix("hitomi:gallery-v2:") {
                     validate_gallery(&gallery_card_assignment(source)?, id)?;
-                }
-                if key == "hitomi:routing" {
-                    routing_assignment(source)?;
                 }
                 if key == "hitomi:index-version"
                     && (source.trim().is_empty()
@@ -335,75 +341,186 @@ pub fn work(gallery: &Value) -> Result<Value> {
         json!({"type":"work","id":id,"workId":id,"title":primary,"subtitle":gallery.get("language_localname").unwrap_or(&gallery["language"]),"imageUrl":cover,"coverURL":cover,"contentRating":"ADULT","mediaKind":"manga","language":gallery["language"],"tags":tags,"publishedAt":gallery["date"],"workInfo":{"thumbnailUrl":cover,"synopsis":"","primaryTitle":primary,"secondaryTitles":if alternate.is_empty() || alternate == primary {vec![]} else {vec![alternate]},"contentRating":"ADULT","status":"completed","artist":values(gallery,"artists","artist").join(", "),"author":([values(gallery,"artists","artist"),values(gallery,"groups","group")].concat().join(", ")),"searchFacets":facets,"shareUrl":share}}),
     )
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Routing {
     path: String,
-    default: u32,
-    overrides: BTreeMap<u32, u32>,
+    routes: Vec<u16>,
+}
+#[derive(PartialEq)]
+enum RoutingToken {
+    Case,
+    Output,
+    Break,
+    Number(u32),
+    Colon,
+    Equals,
+    Semicolon,
+}
+struct RoutingLexer<'a>(&'a str);
+impl RoutingLexer<'_> {
+    fn next(&mut self) -> Result<Option<RoutingToken>> {
+        self.0 = self.0.trim_start();
+        let Some(first) = self.0.bytes().next() else {
+            return Ok(None);
+        };
+        let length = if first.is_ascii_digit() {
+            self.0.bytes().take_while(u8::is_ascii_digit).count()
+        } else if first.is_ascii_alphabetic() || first == b'_' || first == b'$' {
+            self.0
+                .bytes()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'$')
+                .count()
+        } else if matches!(first, b':' | b'=' | b';') {
+            1
+        } else {
+            return Err(invalid("Unsupported routing token"));
+        };
+        let value = &self.0[..length];
+        self.0 = &self.0[length..];
+        let token = match value {
+            "case" => RoutingToken::Case,
+            "o" => RoutingToken::Output,
+            "break" => RoutingToken::Break,
+            ":" => RoutingToken::Colon,
+            "=" => RoutingToken::Equals,
+            ";" => RoutingToken::Semicolon,
+            _ if first.is_ascii_digit() => RoutingToken::Number(
+                value
+                    .parse()
+                    .map_err(|_| invalid("Invalid routing number"))?,
+            ),
+            _ => return Err(invalid("Unsupported routing token")),
+        };
+        Ok(Some(token))
+    }
+    fn expect(&mut self, token: RoutingToken) -> Result<()> {
+        if self.next()? != Some(token) {
+            return Err(invalid("Malformed routing statement"));
+        }
+        Ok(())
+    }
+    fn number(&mut self) -> Result<u32> {
+        match self.next()? {
+            Some(RoutingToken::Number(value)) => Ok(value),
+            _ => Err(invalid("Routing number missing")),
+        }
+    }
 }
 pub fn routing_assignment(source: &str) -> Result<Routing> {
-    if !Regex::new(r"\bgg\s*=\s*\{").unwrap().is_match(source) {
+    if source.len() > 128 * 1024 || !ROUTING_START.is_match(source) {
         return Err(invalid("Routing assignment missing"));
     }
-    let path = Regex::new(r#"\bb\s*:\s*["']([A-Za-z0-9._/-]+)["']"#)
-        .unwrap()
+    let path = ROUTING_PATH
         .captures(source)
         .and_then(|c| c.get(1))
         .map(|v| v.as_str().to_owned())
         .ok_or_else(|| invalid("Routing path missing"))?;
-    let default = Regex::new(r"\bvar\s+o\s*=\s*([0-9]{1,3})\s*;")
-        .unwrap()
+    let default = ROUTING_DEFAULT
         .captures(source)
         .and_then(|c| c[1].parse::<u32>().ok())
         .ok_or_else(|| invalid("Hitomi.la routing configuration is malformed"))?;
     if path.len() > 256 || path.contains("..") || path.contains("//") || default > 999 {
         return Err(invalid("Invalid routing configuration"));
     }
-    let body = Regex::new(r"(?s)\bswitch\s*\(\s*g\s*\)\s*\{(.*?)\}\s*return\s+o\s*;")
-        .unwrap()
-        .captures(source)
-        .map(|v| v[1].to_owned())
-        .unwrap_or_default();
-    for assignment in Regex::new(r"\bo\s*=\s*([0-9]+)\s*;\s*break\s*;")
-        .unwrap()
-        .captures_iter(&body)
-    {
-        if assignment[1].parse::<u32>().unwrap_or(u32::MAX) > 999 {
-            return Err(invalid("Routing result out of bounds"));
-        }
+    let switch = ROUTING_SWITCH
+        .find(source)
+        .ok_or_else(|| invalid("Routing switch missing"))?;
+    let (body, remainder) = source[switch.end()..]
+        .split_once('}')
+        .ok_or_else(|| invalid("Routing switch unclosed"))?;
+    if !ROUTING_RETURN.is_match(remainder) {
+        return Err(invalid("Routing return missing"));
     }
-    let mut overrides = BTreeMap::new();
-    for group in
-        Regex::new(r"((?:\s*case\s+[0-9]+\s*:\s*)+)\s*o\s*=\s*([0-9]{1,10})\s*;\s*break\s*;")
-            .unwrap()
-            .captures_iter(&body)
-    {
-        let route = group[2]
-            .parse::<u32>()
-            .map_err(|_| invalid("Invalid route"))?;
-        for key in Regex::new(r"case\s+([0-9]+)\s*:")
-            .unwrap()
-            .captures_iter(&group[1])
-        {
-            let key = key[1]
-                .parse::<u32>()
-                .map_err(|_| invalid("Invalid routing key"))?;
-            if key > 4095 {
+    let mut routes = vec![default as u16; 4096];
+    let mut pending = Vec::new();
+    let mut seen = [false; 4096];
+    let mut lexer = RoutingLexer(body);
+    // One token per label avoids a capture group spanning thousands of cases.
+    while let Some(token) = lexer.next()? {
+        if token == RoutingToken::Case {
+            let key = lexer.number()?;
+            lexer.expect(RoutingToken::Colon)?;
+            if key > 4095 || seen[key as usize] {
                 return Err(invalid("Routing key out of bounds"));
             }
-            overrides.insert(key, route);
+            seen[key as usize] = true;
+            pending.push(key);
+        } else if token == RoutingToken::Output {
+            lexer.expect(RoutingToken::Equals)?;
+            let route = lexer.number()?;
+            lexer.expect(RoutingToken::Semicolon)?;
+            lexer.expect(RoutingToken::Break)?;
+            lexer.expect(RoutingToken::Semicolon)?;
+            if route > 999 || pending.is_empty() {
+                return Err(invalid("Routing result out of bounds"));
+            }
+            for key in pending.drain(..) {
+                routes[key as usize] = route as u16;
+            }
+        } else {
+            return Err(invalid("Unsupported routing statement"));
         }
     }
+    Ok(Routing { path, routes })
+}
+fn cached_routing(value: &Value) -> Result<Routing> {
+    let path = value["path"]
+        .as_str()
+        .ok_or_else(|| invalid("Routing path missing"))?;
+    if path.is_empty()
+        || path.len() > 256
+        || path.contains("..")
+        || path.contains("//")
+        || !path
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"._/-".contains(&c))
+    {
+        return Err(invalid("Invalid routing path"));
+    }
+    let encoded = value["routes"]
+        .as_str()
+        .filter(|v| v.len() == 10924)
+        .ok_or_else(|| invalid("Invalid routing table size"))?;
+    let bytes = STANDARD
+        .decode(encoded)
+        .map_err(|_| invalid("Invalid routing table"))?;
+    if bytes.len() != 8192 {
+        return Err(invalid("Invalid routing table size"));
+    }
+    let routes = bytes
+        .chunks_exact(2)
+        .map(|v| u16::from_be_bytes([v[0], v[1]]))
+        .collect::<Vec<_>>();
+    if routes.iter().any(|v| *v > 999) {
+        return Err(invalid("Routing result out of bounds"));
+    }
     Ok(Routing {
-        path,
-        default,
-        overrides,
+        path: path.to_owned(),
+        routes,
     })
 }
 async fn routing(context: &Context) -> Result<Routing> {
-    routing_assignment(
-        &cached_text(context, "hitomi:routing", &format!("{STATIC}/gg.js"), 60.0).await?,
-    )
+    let value = context
+        .remember(
+            "hitomi:routing-v2",
+            Some(60.0),
+            async {
+                let response = request(context, &format!("{STATIC}/gg.js"), None, false).await?;
+                successful(&response)?;
+                let source = String::from_utf8(bytes(&response)?)
+                    .map_err(|_| invalid("Invalid routing text"))?;
+                let routing = routing_assignment(&source)?;
+                let bytes = routing
+                    .routes
+                    .iter()
+                    .flat_map(|route| route.to_be_bytes())
+                    .collect::<Vec<_>>();
+                Ok(json!({"path":routing.path,"routes":STANDARD.encode(bytes)}))
+            },
+            |value| cached_routing(value).map(|_| ()),
+        )
+        .await?;
+    cached_routing(&value)
 }
 fn number(hash: &str) -> u32 {
     u32::from_str_radix(&format!("{}{}", &hash[63..], &hash[61..63]), 16).unwrap()
@@ -411,11 +528,7 @@ fn number(hash: &str) -> u32 {
 fn page_url(file: &Value, routing: &Routing) -> Result<String> {
     let hash = hash(&file["hash"])?;
     let number = number(hash);
-    let route = routing
-        .overrides
-        .get(&number)
-        .copied()
-        .unwrap_or(routing.default);
+    let route = routing.routes[number as usize];
     let name = text(&file["name"]).to_lowercase();
     let original = name.rsplit('.').next().unwrap_or("");
     let extension = if file["hasavif"] == 1 || file["hasavif"] == "1" {
@@ -437,11 +550,7 @@ fn page_url(file: &Value, routing: &Routing) -> Result<String> {
 }
 fn page_route(file: &Value, routing: &Routing) -> Result<u32> {
     let number = number(hash(&file["hash"])?);
-    Ok(routing
-        .overrides
-        .get(&number)
-        .copied()
-        .unwrap_or(routing.default))
+    Ok(routing.routes[number as usize] as u32)
 }
 fn u32_at(bytes: &[u8], offset: usize) -> Result<u32> {
     Ok(u32::from_be_bytes(
@@ -1055,12 +1164,7 @@ pub fn run(context: Context, method: String, mut args: Value) -> Operation {
                     let routing = routing(&context).await?;
                     let expected = format!(
                         "https://a{}.gold-usergeneratedcontent.net",
-                        routing
-                            .overrides
-                            .get(&number)
-                            .copied()
-                            .unwrap_or(routing.default)
-                            + 1
+                        routing.routes[number as usize] + 1
                     );
                     if url.origin().ascii_serialization() != expected
                         || captures[1] != *routing.path.trim_matches('/')
@@ -1181,9 +1285,47 @@ mod tests {
     #[test]
     fn routing_is_data_not_code() {
         let route=routing_assignment("var gg={b:'route/',m:function(g){var o=0;switch(g){case 1:case 2:o=1;break;}return o;}}").unwrap();
-        assert_eq!(route.overrides[&1], 1);
+        assert_eq!(route.routes[1], 1);
         assert!(routing_assignment("gg={b:'../',m:function(g){var o=0;}}").is_err());
         assert!(gallery_assignment("var galleryinfo={}; alert(1)").is_err());
+    }
+    #[test]
+    fn routing_large_switch_is_bounded_and_validated() {
+        let cases = (0..4096)
+            .map(|key| format!("case {key}:\n"))
+            .collect::<String>();
+        let source = format!(
+            "gg={{m:function(g){{var o=1;switch(g){{{cases}o=0;break;}}return o;}},b:'route/'}};"
+        );
+        let route = routing_assignment(&source).unwrap();
+        assert_eq!(route.routes.len(), 4096);
+        assert_eq!(route.routes[4095], 0);
+        assert!(routing_assignment(&source.replace("case 4095:", "case 4096:")).is_err());
+        assert!(routing_assignment(&source.replace("o=0;break;", "o=1000;break;")).is_err());
+        assert!(routing_assignment(&source.replace("o=0;break;", "o=compute();break;")).is_err());
+        assert!(routing_assignment(&source.replace("case 4095:", "case 1:")).is_err());
+    }
+    #[test]
+    fn compact_routing_cache_is_validated() {
+        let route = routing_assignment(
+            "gg={b:'route/',m:function(g){var o=1;switch(g){case 1:o=0;break;}return o;}}",
+        )
+        .unwrap();
+        let bytes = route
+            .routes
+            .iter()
+            .flat_map(|route| route.to_be_bytes())
+            .collect::<Vec<_>>();
+        let value = json!({"path":route.path,"routes":STANDARD.encode(&bytes)});
+        assert_eq!(cached_routing(&value).unwrap(), route);
+        assert!(cached_routing(&json!({"path":"../","routes":value["routes"]})).is_err());
+        assert!(
+            cached_routing(&json!({"path":"route/","routes":STANDARD.encode(&bytes[..8190])}))
+                .is_err()
+        );
+        let mut bad = bytes;
+        bad[0..2].copy_from_slice(&1000u16.to_be_bytes());
+        assert!(cached_routing(&json!({"path":"route/","routes":STANDARD.encode(bad)})).is_err());
     }
     #[test]
     fn binary_data_is_bounded() {

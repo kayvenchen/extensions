@@ -745,7 +745,10 @@ test("Hitomi large galleries keep catalog and detail payloads compact without tr
   value.files = Array.from({length:1070}, (_, index) => ({...value.files[0], name:`${index+1}.png`}));
   const loaded = await loadContentExtension(mainPath, request => {
     if (request.url.endsWith(".nozomi")) return runtimeResponse({url:request.url, bytes:nozomi([8])});
-    if (request.url.endsWith("/gg.js")) return runtimeResponse({url:request.url, text:routing});
+    if (request.url.endsWith("/gg.js")) {
+      const cases = Array.from({length:4096}, (_, key) => `case ${key}:\n`).join("");
+      return runtimeResponse({url:request.url, text:`var gg={b:'route/',m:function(g){var o=1;switch(g){${cases}o=0;break;}return o;}}`});
+    }
     return runtimeResponse({url:request.url, text:`var galleryinfo=${JSON.stringify(value)};`});
   }, {cache:metadataCacheFixture()});
   const page = await loaded.extension.discover({sectionId:"latest"});
