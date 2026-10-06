@@ -73,7 +73,7 @@
       "id": "HitomiLA",
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
-      "version": "2.0.4",
+      "version": "2.0.5",
       "icon": "icons/HitomiLA.svg",
       "languages": [
         "en",
@@ -132,9 +132,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/HitomiLA/2.0.4/main.wasm",
-        "sha256": "ae0b05e9025e7f9238517e449e1855865a70c8b658d984e7f3691c14853617f3",
-        "size": 1692295,
+        "moduleURL": "sources/HitomiLA/2.0.5/main.wasm",
+        "sha256": "f0544e41fec6b1bc4b2605e3bd80ee5b2d22c08d2e90f6fcdb3df08ba61b1274",
+        "size": 1692741,
         "allowedHTTPSHosts": [
           "hitomi.la",
           "ltn.gold-usergeneratedcontent.net",
@@ -147,7 +147,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "ae0b05e9025e7f9238517e449e1855865a70c8b658d984e7f3691c14853617f3",
+      "moduleSHA256": "f0544e41fec6b1bc4b2605e3bd80ee5b2d22c08d2e90f6fcdb3df08ba61b1274",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",

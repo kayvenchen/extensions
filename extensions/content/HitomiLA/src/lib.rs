@@ -1059,7 +1059,8 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         } else {
             "index".into()
         };
-        let start = offset * 4;
+        let window_offset = offset / CATALOG_PAGE_SIZE * CATALOG_PAGE_SIZE;
+        let start = window_offset * 4;
         let (bytes, total) = nozomi_range(
             context,
             &format!("{STATIC}/n/{path}-{language}.nozomi"),
@@ -1068,9 +1069,20 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         )
         .await?;
         let ids = nozomi(&bytes)?;
-        let has_next = start + (bytes.len() as u64) < total;
+        // The first title is selectable while the rest of its cached window hydrates.
+        let ids: Vec<_> = ids
+            .into_iter()
+            .skip((offset - window_offset) as usize)
+            .take(if offset == 0 {
+                1
+            } else {
+                CATALOG_PAGE_SIZE as usize
+            })
+            .collect();
+        let next_offset = offset + ids.len() as u64;
+        let has_next = !ids.is_empty() && next_offset * 4 < total;
         return Ok(
-            json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"offset":offset+ids.len() as u64})} else {Value::Null}}),
+            json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"offset":next_offset})} else {Value::Null}}),
         );
     }
     let mut result = if let Some(term) = positive.first() {
