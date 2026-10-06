@@ -8,10 +8,13 @@ use serde::{
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::LazyLock;
 const STATIC: &str = "https://ltn.gold-usergeneratedcontent.net";
 const INDEX_CHUNK_BYTES: u64 = 16 * 1024;
+const CATALOG_PAGE_SIZE: u64 = 5;
+const MAX_CATALOG_OFFSET: u64 = 16 * 1024 * 1024 / 4;
 static PAGE_HOST: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^a(?:[1-9][0-9]{0,2}|1000)\.gold-usergeneratedcontent\.net$").unwrap()
 });
@@ -135,9 +138,6 @@ async fn cached_text(context: &Context, key: &str, url: &str, ttl: f64) -> Resul
                 let source = value
                     .as_str()
                     .ok_or_else(|| invalid("Malformed cached text"))?;
-                if let Some(id) = key.strip_prefix("hitomi:gallery-v2:") {
-                    validate_gallery(&gallery_card_assignment(source)?, id)?;
-                }
                 if key == "hitomi:index-version"
                     && (source.trim().is_empty()
                         || source.trim().len() > 20
@@ -190,10 +190,15 @@ impl<'de> Deserialize<'de> for GalleryCard {
             ) -> std::result::Result<Self::Value, A::Error> {
                 let mut gallery = serde_json::Map::new();
                 while let Some(key) = map.next_key::<String>()? {
-                    let value = if key == "files" {
-                        map.next_value::<CoverFiles>()?.0
-                    } else {
-                        map.next_value::<Value>()?
+                    let value = match key.as_str() {
+                        "files" => map.next_value::<CoverFiles>()?.0,
+                        "id" | "title" | "japanese_title" | "language" | "language_localname"
+                        | "type" | "date" | "galleryurl" | "artists" | "groups" | "parodys"
+                        | "characters" | "tags" => map.next_value::<Value>()?,
+                        _ => {
+                            map.next_value::<serde::de::IgnoredAny>()?;
+                            continue;
+                        }
                     };
                     gallery.insert(key, value);
                 }
@@ -259,14 +264,57 @@ async fn gallery(context: &Context, value: &Value) -> Result<Value> {
     validate_gallery(&value, &id)?;
     Ok(value)
 }
+async fn gallery_data(context: &Context, id: &str) -> Result<(Value, Value)> {
+    // Keep the validated projection instead of parsing the same gallery twice.
+    let card = RefCell::new(None);
+    let raw = context
+        .remember(
+            &format!("hitomi:gallery-v2:{id}"),
+            Some(1800.0),
+            async {
+                let response =
+                    request(context, &format!("{STATIC}/galleries/{id}.js"), None, false).await?;
+                if status(&response) == 404 {
+                    return Err(error("Gallery not found", "notFound"));
+                }
+                Ok(json!(String::from_utf8(bytes(&response)?)
+                    .map_err(|_| invalid("Invalid text response"))?))
+            },
+            |value| {
+                let source = value
+                    .as_str()
+                    .ok_or_else(|| invalid("Malformed cached text"))?;
+                let projection = gallery_card_assignment(source)?;
+                validate_gallery(&projection, id)?;
+                *card.borrow_mut() = Some(projection);
+                Ok(())
+            },
+        )
+        .await?;
+    Ok((
+        raw,
+        card.into_inner()
+            .ok_or_else(|| invalid("Gallery metadata missing"))?,
+    ))
+}
 async fn gallery_text(context: &Context, id: &str) -> Result<String> {
-    cached_text(
-        context,
-        &format!("hitomi:gallery-v2:{id}"),
-        &format!("{STATIC}/galleries/{id}.js"),
-        1800.0,
-    )
-    .await
+    Ok(text(&gallery_data(context, id).await?.0).to_owned())
+}
+async fn gallery_card(context: &Context, id: &str) -> Result<Value> {
+    context
+        .remember(
+            &format!("hitomi:gallery-card-v1:{id}"),
+            Some(1800.0),
+            async { Ok(gallery_data(context, id).await?.1) },
+            |value| {
+                validate_gallery(value, id)?;
+                if value["files"].as_array().map(Vec::len) != Some(1) {
+                    return Err(invalid("Invalid cached gallery card"));
+                }
+                Ok(())
+            },
+        )
+        .await
 }
 fn values(gallery: &Value, group: &str, key: &str) -> Vec<String> {
     gallery[group]
@@ -725,7 +773,7 @@ async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
     let mut result = vec![];
     for chunk in ids.chunks(4) {
         let cards = futures::future::join_all(chunk.iter().map(|id| async move {
-            let gallery = gallery_card_assignment(&gallery_text(context, &id.to_string()).await?)?;
+            let gallery = gallery_card(context, &id.to_string()).await?;
             work(&gallery)
         }))
         .await;
@@ -940,9 +988,25 @@ async fn title_ids(context: &Context, term: &str) -> Result<Vec<u32>> {
     }
     Err(invalid("B-tree depth exceeded"))
 }
+fn catalog_cursor(args: &Value) -> Option<&Value> {
+    args.get("metadata")
+        .filter(|value| !value.is_null())
+        .or_else(|| args.get("cursor").filter(|value| !value.is_null()))
+}
+fn catalog_offset(args: &Value) -> Result<u64> {
+    let cursor = catalog_cursor(args);
+    if let Some(offset) = cursor.and_then(|value| value.get("offset")) {
+        return offset
+            .as_u64()
+            .filter(|value| *value <= MAX_CATALOG_OFFSET)
+            .ok_or_else(|| error("Invalid catalog offset", "invalidCursor"));
+    }
+    // Old continuations counted pages of 25, not the new five-title batches.
+    Ok((page(&json!({"metadata":cursor}), 100_000)? - 1) * 25)
+}
 async fn search(context: &Context, args: &Value) -> Result<Value> {
     validate_search(&filters(), args)?;
-    let page = page(args, 100_000)?;
+    let offset = catalog_offset(args)?;
     let sort = args["sort"].as_str().unwrap_or("newest");
     let mut raw = text(args.get("query").unwrap_or(&args["text"]))
         .trim()
@@ -964,7 +1028,7 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
     }
     let raw = raw.trim();
     if !raw.is_empty() && raw.bytes().all(|v| v.is_ascii_digit()) {
-        if page > 1 {
+        if offset > 0 {
             return Ok(json!({"items":[],"metadata":null}));
         }
         return Ok(json!({"items":[work(&gallery(context,&json!(raw)).await?)?],"metadata":null}));
@@ -995,18 +1059,18 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         } else {
             "index".into()
         };
-        let start = (page - 1) * 100;
+        let start = offset * 4;
         let (bytes, total) = nozomi_range(
             context,
             &format!("{STATIC}/n/{path}-{language}.nozomi"),
             start,
-            100,
+            CATALOG_PAGE_SIZE * 4,
         )
         .await?;
         let ids = nozomi(&bytes)?;
         let has_next = start + (bytes.len() as u64) < total;
         return Ok(
-            json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"page":page+1})} else {Value::Null}}),
+            json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"offset":offset+ids.len() as u64})} else {Value::Null}}),
         );
     }
     let mut result = if let Some(term) = positive.first() {
@@ -1038,11 +1102,10 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
     }
     let mut seed = 0u32;
     if sort == "random" {
-        seed = if page == 1 {
+        seed = if offset == 0 {
             context.now().await?["random"].as_u64().unwrap_or(1) as u32
         } else {
-            args.get("metadata")
-                .or(args.get("cursor"))
+            catalog_cursor(args)
                 .and_then(|v| v["randomSeed"].as_u64())
                 .filter(|v| *v > 0 && *v <= u32::MAX as u64)
                 .ok_or_else(|| invalid("Hitomi.la random pagination seed is invalid"))?
@@ -1057,19 +1120,19 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
             result.swap(index, target);
         }
     }
-    let start = (page as usize - 1) * 25;
+    let start = offset as usize;
     let items = cards(
         context,
         &result
             .iter()
             .skip(start)
-            .take(25)
+            .take(CATALOG_PAGE_SIZE as usize)
             .copied()
             .collect::<Vec<_>>(),
     )
     .await?;
     Ok(
-        json!({"items":items,"metadata":if start+25<result.len() {let mut value=json!({"page":page+1});if sort=="random" {value["randomSeed"]=json!(seed);}value} else {Value::Null}}),
+        json!({"items":items,"metadata":if start+(CATALOG_PAGE_SIZE as usize)<result.len() {let mut value=json!({"offset":offset+CATALOG_PAGE_SIZE});if sort=="random" {value["randomSeed"]=json!(seed);}value} else {Value::Null}}),
     )
 }
 pub fn run(context: Context, method: String, mut args: Value) -> Operation {
@@ -1343,6 +1406,37 @@ mod tests {
         gallery["files"][1069]["hash"] = json!("invalid");
         assert!(gallery_card_assignment(&format!("var galleryinfo={gallery};")).is_err());
         assert!(gallery_card_assignment("var galleryinfo={\"files\":null};").is_err());
+    }
+    #[test]
+    fn catalog_cursors_preserve_legacy_offsets() {
+        assert_eq!(catalog_offset(&json!({})).unwrap(), 0);
+        assert_eq!(
+            catalog_offset(&json!({"metadata":{"offset":5}})).unwrap(),
+            5
+        );
+        assert_eq!(
+            catalog_offset(&json!({"cursor":{"offset":30}})).unwrap(),
+            30
+        );
+        assert_eq!(catalog_offset(&json!({"metadata":{"page":2}})).unwrap(), 25);
+        assert_eq!(catalog_offset(&json!({"metadata":{"page":3}})).unwrap(), 50);
+        assert_eq!(
+            catalog_offset(&json!({"metadata":null,"cursor":{"page":2}})).unwrap(),
+            25
+        );
+        assert_eq!(
+            catalog_offset(&json!({"metadata":null,"cursor":{"offset":5}})).unwrap(),
+            5
+        );
+        for value in [
+            json!(-1),
+            json!(1.5),
+            json!("5"),
+            json!(null),
+            json!(MAX_CATALOG_OFFSET + 1),
+        ] {
+            assert!(catalog_offset(&json!({"metadata":{"offset":value}})).is_err());
+        }
     }
     #[test]
     fn cached_ranges_validate_alignment_and_extent() {

@@ -15,7 +15,7 @@
       "id": "AniList",
       "name": "AniList",
       "description": "Track manga progress and lists with AniList.",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "icon": "icons/AniList.svg",
       "languages": [
         "multi"
@@ -52,9 +52,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/AniList/2.0.0/main.wasm",
-        "sha256": "5af585eba46c78665ba5bca56228ec57f508f08df5813988ee71881413808e1b",
-        "size": 1248451,
+        "moduleURL": "sources/AniList/2.1.0/main.wasm",
+        "sha256": "52f392f450bf0fa652ecdab313971564aeff7e496ce47085d76d416e3e09170a",
+        "size": 1250834,
         "allowedHTTPSHosts": [
           "anilist.co",
           "graphql.anilist.co",
@@ -69,7 +69,7 @@
       "id": "HitomiLA",
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
-      "version": "2.0.3",
+      "version": "2.0.4",
       "icon": "icons/HitomiLA.svg",
       "languages": [
         "en",
@@ -128,9 +128,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/HitomiLA/2.0.3/main.wasm",
-        "sha256": "e31311261d87b75b694d5db9739f6e1f60a6db5ce8a9bacafc6b521c09ed611e",
-        "size": 1672398,
+        "moduleURL": "sources/HitomiLA/2.0.4/main.wasm",
+        "sha256": "ae0b05e9025e7f9238517e449e1855865a70c8b658d984e7f3691c14853617f3",
+        "size": 1692295,
         "allowedHTTPSHosts": [
           "hitomi.la",
           "ltn.gold-usergeneratedcontent.net",
@@ -148,7 +148,7 @@
       "id": "MyAnimeList",
       "name": "MyAnimeList",
       "description": "Track manga progress and lists with MyAnimeList.",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "icon": "icons/MyAnimeList.svg",
       "languages": [
         "multi"
@@ -185,9 +185,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MyAnimeList/2.0.0/main.wasm",
-        "sha256": "8c8410738685d48f566732471ffccc406ea9156409b378ae7fe34534cfddcdd3",
-        "size": 432619,
+        "moduleURL": "sources/MyAnimeList/2.1.0/main.wasm",
+        "sha256": "37d980a802bbefcb556235750a71bc22651e1fc3577f42a1c87e9c7445b03b5e",
+        "size": 431377,
         "allowedHTTPSHosts": [
           "api.myanimelist.net",
           "cdn.myanimelist.net",
