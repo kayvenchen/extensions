@@ -306,7 +306,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "manko-anilist"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "manko-sdk",
  "regex",
@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "manko-myanimelist"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "manko-sdk",
  "serde_json",

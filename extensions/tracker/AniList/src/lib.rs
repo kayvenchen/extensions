@@ -3,8 +3,8 @@ use manko_sdk::{decode_json, error, id, text, timestamp, Context, Operation, Res
 use serde_json::{json, Value};
 
 const SEARCH: &str = "query ($search: String, $format: MediaFormat) { Page(page: 1, perPage: 20) { media(search: $search, type: MANGA, format: $format) { id format title { userPreferred english romaji native } coverImage { large } } } }";
-const PROGRESS: &str = "query ($mediaID: Int) { Media(id: $mediaID, type: MANGA) { mediaListEntry { mediaId status score progress progressVolumes updatedAt } } }";
-const UPDATE: &str = "mutation ($mediaID: Int, $status: MediaListStatus, $progress: Int, $progressVolumes: Int, $score: Float) { SaveMediaListEntry(mediaId: $mediaID, status: $status, progress: $progress, progressVolumes: $progressVolumes, score: $score) { mediaId status score progress progressVolumes updatedAt } }";
+const PROGRESS: &str = "query ($mediaID: Int) { Media(id: $mediaID, type: MANGA) { chapters volumes mediaListEntry { mediaId status score(format: POINT_100) progress progressVolumes updatedAt startedAt { year month day } completedAt { year month day } } } }";
+const UPDATE: &str = "mutation ($mediaID: Int, $status: MediaListStatus, $progress: Int, $progressVolumes: Int, $scoreRaw: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) { SaveMediaListEntry(mediaId: $mediaID, status: $status, progress: $progress, progressVolumes: $progressVolumes, scoreRaw: $scoreRaw, startedAt: $startedAt, completedAt: $completedAt) { mediaId status score progress progressVolumes updatedAt } }";
 const COLLECTIONS: &str = "query { MediaListCollection(type: MANGA, chunk: 1, perChunk: 500) { lists { name entries { mediaId media { id format title { userPreferred english romaji native } coverImage { large } } } } } }";
 
 async fn graphql(
@@ -65,10 +65,81 @@ fn media_match(media: &Value, requested: &str) -> Value {
         "mediaKind":if text(&media["format"]) == "NOVEL" {"lightNovel"} else if requested == "comic" {"comic"} else {"manga"}})
 }
 
+fn canonical_status(status: &str) -> Value {
+    match status {
+        "CURRENT" => json!("reading"),
+        "PLANNING" => json!("planning"),
+        "COMPLETED" => json!("completed"),
+        "PAUSED" => json!("paused"),
+        "DROPPED" => json!("dropped"),
+        "REPEATING" => json!("rereading"),
+        _ => Value::Null,
+    }
+}
+fn native_status(status: &str) -> &str {
+    match status {
+        "reading" => "CURRENT",
+        "planning" => "PLANNING",
+        "completed" => "COMPLETED",
+        "paused" => "PAUSED",
+        "dropped" => "DROPPED",
+        "rereading" => "REPEATING",
+        _ => "",
+    }
+}
+fn reading_date(value: &Value) -> Value {
+    let mut components = serde_json::Map::new();
+    for field in ["year", "month", "day"] {
+        if let Some(number) = value[field].as_u64().filter(|number| *number > 0) {
+            components.insert(field.into(), json!(number));
+        }
+    }
+    if components.is_empty() {
+        Value::Null
+    } else {
+        Value::Object(components)
+    }
+}
+fn update_variables(progress: &Value) -> Result<Value> {
+    let media_id = id(&progress["remoteWorkID"])?;
+    let mut variables = json!({"mediaID":media_id.parse::<u64>().unwrap()});
+    let status = native_status(text(&progress["status"]));
+    if !status.is_empty() {
+        variables["status"] = json!(status);
+    }
+    for (input, output) in [("chapter", "progress"), ("volume", "progressVolumes")] {
+        if let Some(value) = progress[input]
+            .as_f64()
+            .filter(|value| value.is_finite() && *value >= 0.0)
+        {
+            variables[output] = json!(value.round());
+        }
+    }
+    if progress.get("score").is_some() {
+        variables["scoreRaw"] =
+            json!(progress["score"].as_f64().unwrap_or(0.0).clamp(0.0, 10.0) * 10.0);
+        if let Some(value) = variables["scoreRaw"].as_f64() {
+            variables["scoreRaw"] = json!(value.round() as i64);
+        }
+    }
+    for (input, output) in [("startDate", "startedAt"), ("finishDate", "completedAt")] {
+        if let Some(value) = progress["dateUpdates"].get(input) {
+            // AniList clears fuzzy dates by explicitly clearing every component.
+            variables[output] = if value.is_null() {
+                json!({"year":null,"month":null,"day":null})
+            } else {
+                value.clone()
+            };
+        }
+    }
+    Ok(variables)
+}
+
 pub fn run(context: Context, method: String, args: Value) -> Operation {
     Box::pin(async move {
         match method.as_str() {
             "initialize" | "invalidateCache" => Ok(Value::Null),
+            "trackingCapabilities" => Ok(json!({"supportsDateUpdates":true})),
             "authentication" => Ok(
                 json!({"mode":"oauth2Implicit","authorizationURL":"https://anilist.co/api/v2/oauth/authorize",
                 "callbackScheme":"manko","callbackURL":"manko://oauth/anilist",
@@ -119,28 +190,16 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 };
                 Ok(
                     json!({"remoteWorkID":entry["mediaId"].as_u64().map(|value|value.to_string()).unwrap_or(media_id),
-                    "chapter":entry["progress"],"volume":entry["progressVolumes"],"status":entry["status"],
-                    "score":entry["score"],"modifiedAt":modified}),
+                    "chapter":entry["progress"],"volume":entry["progressVolumes"],"status":canonical_status(text(&entry["status"])),
+                    "score":entry["score"].as_f64().filter(|value| *value > 0.0).map(|value|value/10.0),"modifiedAt":modified,
+                    "startDate":reading_date(&entry["startedAt"]),"finishDate":reading_date(&entry["completedAt"]),
+                    "totalChapters":data["Media"]["chapters"].as_u64().filter(|value|*value>0),
+                    "totalVolumes":data["Media"]["volumes"].as_u64().filter(|value|*value>0)}),
                 )
             }
             "update" => {
                 let progress = &args["progress"];
-                let media_id = id(&progress["remoteWorkID"])?;
-                let mut variables = json!({"mediaID":media_id.parse::<u64>().unwrap()});
-                if !text(&progress["status"]).is_empty() {
-                    variables["status"] = json!(text(&progress["status"]).to_uppercase());
-                }
-                for (input, output) in [("chapter", "progress"), ("volume", "progressVolumes")] {
-                    if let Some(value) = progress[input]
-                        .as_f64()
-                        .filter(|value| value.is_finite() && *value >= 0.0)
-                    {
-                        variables[output] = json!(value.round());
-                    }
-                }
-                if let Some(score) = progress["score"].as_f64().filter(|value| value.is_finite()) {
-                    variables["score"] = json!(score.clamp(0.0, 100.0));
-                }
+                let variables = update_variables(progress)?;
                 graphql(&context, UPDATE, variables, true).await?;
                 Ok(Value::Null)
             }

@@ -21,8 +21,8 @@ test("MyAnimeList covers PKCE metadata, search, progress, update, and collection
   assert.equal(auth.mode, "oauth2PKCE");
   assert.equal(auth.pkceMethod, "plain");
   assert.deepEqual(plain(await runtime.extension.search({ title: "Fixture", kind: "manga" })), [{ id: "2", title: "Fixture", coverURL: "https://cdn.myanimelist.net/fixture.jpg", mediaKind: "manga" }]);
-  assert.equal((await runtime.extension.progress("2")).score, 80);
-  await runtime.extension.update({ remoteWorkID: "2", chapter: 5, score: 90, status: "CURRENT" });
+  assert.equal((await runtime.extension.progress("2")).score, 8);
+  await runtime.extension.update({ remoteWorkID: "2", chapter: 5, score: 9, status: "reading" });
   assert.equal((await runtime.extension.collections()).items[0].id, "mal-reading");
   assert.ok(runtime.calls.every(call => call.headers.Authorization === "Bearer token"));
 });
@@ -35,4 +35,31 @@ test("MyAnimeList handles missing progress, credentials, and API failures", asyn
   runtime.context.secureState.set("oauth_access_token", "token");
   const failed = await loadTrackerExtension(main, () => runtimeResponse({ status: 503, text: "private details" }), { secureState: { oauth_access_token: "token" } });
   await assert.rejects(() => failed.extension.search({ title: "Fixture", kind: "manga" }), /MyAnimeList request failed \(503\)/);
+});
+
+test("MAL returns partial dates and unknown totals without claiming date-write support", async () => {
+  const forms = [];
+  const runtime = await loadTrackerExtension(main, request => {
+    const url = new URL(request.url);
+    if (url.pathname.endsWith("/my_list_status")) {
+      forms.push(new URLSearchParams(request.body));
+      return runtimeResponse({ text: "{}" });
+    }
+    assert.match(url.searchParams.get("fields"), /num_chapters/);
+    return runtimeResponse({ text: JSON.stringify({ id: 2, num_chapters: 0, num_volumes: 13, my_list_status: {
+      status: "reading", score: 0, num_chapters_read: 19, num_volumes_read: 2,
+      start_date: "2024-02", finish_date: "2024-03-01", updated_at: "2026-01-01T00:00:00Z"
+    } }) });
+  }, { secureState: { oauth_access_token: "token" } });
+  assert.equal((await runtime.extension.trackingCapabilities()).supportsDateUpdates, false);
+  const progress = plain(await runtime.extension.progress("2"));
+  assert.deepEqual(progress.startDate, { year: 2024, month: 2 });
+  assert.deepEqual(progress.finishDate, { year: 2024, month: 3, day: 1 });
+  assert.equal(progress.totalChapters, null);
+  assert.equal(progress.totalVolumes, 13);
+  assert.equal(progress.score, null);
+  assert.equal(progress.status, "reading");
+  await runtime.extension.update({ remoteWorkID: "2", score: null, dateUpdates: { startDate: null } });
+  assert.equal(forms[0].get("score"), "0");
+  assert.equal(forms[0].has("start_date"), false);
 });

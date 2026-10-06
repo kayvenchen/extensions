@@ -4,7 +4,7 @@
   "description": "Track manga progress and lists with AniList.",
   "kind": "tracker",
   "apiVersion": "2.0",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "language": "multi",
   "languages": [
     "multi"

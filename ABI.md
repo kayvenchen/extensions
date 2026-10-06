@@ -43,3 +43,9 @@ imagePageContents receives urls and requestIDs arrays (maximum four). Each dispa
 There is no page execution, JavaScript evaluation, native filesystem, direct network, worker or process service. WebKit is reserved for native visible authentication, Cloudflare verification and verified transport.
 
 Repository Schema V2 publishes extension.runtime = wasm, apiVersion = 2.0, moduleURL, sha256, size, allowedHTTPSHosts and authenticationModes. Legacy scriptURL metadata remains readable by Manko but cannot execute.
+
+### Optional tracker reading metadata (API 2.0)
+
+Trackers may implement `trackingCapabilities`, returning `{ "supportsDateUpdates": true|false }`. Older modules may reject this operation; hosts then treat date writes as unsupported. `progress` may add `startDate` and `finishDate` as objects containing optional Gregorian `year`, `month`, `day`, and positive `totalChapters` / `totalVolumes` (null or zero means unknown).
+
+Scores use the host’s 1–10 scale (fractional inbound scores remain fractional), with null for unrated. Status uses `planning`, `reading`, `completed`, `paused`, `dropped`, `rereading`. Updates may contain `dateUpdates`: missing start/finish keys leave remote values untouched; explicit null clears them. AniList implements date writes. MyAnimeList exposes dates read-only because its documented manga-list update endpoint does not include date fields. Metadata-only totals are never written back.

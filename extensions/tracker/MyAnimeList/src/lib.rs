@@ -45,31 +45,31 @@ fn media_match(media: &Value, requested: &str) -> Value {
 }
 fn canonical_status(status: &str, rereading: bool) -> Value {
     if rereading {
-        return json!("REPEATING");
+        return json!("rereading");
     }
     match status {
-        "reading" => json!("CURRENT"),
-        "plan_to_read" => json!("PLANNING"),
-        "completed" => json!("COMPLETED"),
-        "dropped" => json!("DROPPED"),
-        "on_hold" => json!("PAUSED"),
+        "reading" => json!("reading"),
+        "plan_to_read" => json!("planning"),
+        "completed" => json!("completed"),
+        "dropped" => json!("dropped"),
+        "on_hold" => json!("paused"),
         _ => Value::Null,
     }
 }
 fn update_form(progress: &Value) -> Vec<(String, String)> {
     let mut fields = Vec::new();
-    let status = text(&progress["status"]).to_uppercase();
-    let native = match status.as_str() {
-        "CURRENT" | "REPEATING" => "reading",
-        "PLANNING" => "plan_to_read",
-        "COMPLETED" => "completed",
-        "DROPPED" => "dropped",
-        "PAUSED" => "on_hold",
+    let status = text(&progress["status"]);
+    let native = match status {
+        "reading" | "rereading" => "reading",
+        "planning" => "plan_to_read",
+        "completed" => "completed",
+        "dropped" => "dropped",
+        "paused" => "on_hold",
         _ => "",
     };
     if !native.is_empty() {
         fields.push(("status".into(), native.into()));
-        fields.push(("is_rereading".into(), (status == "REPEATING").to_string()));
+        fields.push(("is_rereading".into(), (status == "rereading").to_string()));
     }
     for (input, output) in [
         ("chapter", "num_chapters_read"),
@@ -82,19 +82,39 @@ fn update_form(progress: &Value) -> Vec<(String, String)> {
             fields.push((output.into(), value.round().to_string()));
         }
     }
-    if let Some(score) = progress["score"].as_f64().filter(|value| value.is_finite()) {
-        fields.push((
-            "score".into(),
-            (score / 10.0).round().clamp(0.0, 10.0).to_string(),
-        ));
+    if progress.get("score").is_some() {
+        let score = progress["score"].as_f64().unwrap_or(0.0);
+        if score.is_finite() {
+            fields.push(("score".into(), score.round().clamp(0.0, 10.0).to_string()));
+        }
     }
     fields
+}
+
+fn reading_date(value: &Value) -> Value {
+    let mut components = serde_json::Map::new();
+    for (field, component) in ["year", "month", "day"]
+        .into_iter()
+        .zip(text(value).split('-'))
+    {
+        if let Ok(number) = component.parse::<u32>() {
+            if number > 0 {
+                components.insert(field.into(), json!(number));
+            }
+        }
+    }
+    if components.is_empty() {
+        Value::Null
+    } else {
+        Value::Object(components)
+    }
 }
 
 pub fn run(context: Context, method: String, args: Value) -> Operation {
     Box::pin(async move {
         match method.as_str() {
             "initialize" | "invalidateCache" => Ok(Value::Null),
+            "trackingCapabilities" => Ok(json!({"supportsDateUpdates":false})),
             "authentication" => Ok(
                 json!({"mode":"oauth2PKCE","authorizationURL":"https://myanimelist.net/v1/oauth2/authorize",
                 "tokenURL":"https://myanimelist.net/v1/oauth2/token","callbackScheme":"manko","callbackURL":"manko://oauth/myanimelist",
@@ -142,7 +162,7 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                     &context,
                     &format!("/manga/{manga_id}"),
                     "GET",
-                    &[("fields", "my_list_status".into())],
+                    &[("fields", "my_list_status,num_chapters,num_volumes".into())],
                     None,
                 )
                 .await?;
@@ -163,7 +183,10 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 Ok(
                     json!({"remoteWorkID":manga_id,"chapter":status["num_chapters_read"].as_f64().unwrap_or(0.0),
                     "volume":status["num_volumes_read"].as_f64().unwrap_or(0.0),"status":canonical_status(text(&status["status"]),status["is_rereading"].as_bool().unwrap_or(false)),
-                    "score":status["score"].as_f64().unwrap_or(0.0)*10.0,"modifiedAt":modified}),
+                    "score":status["score"].as_f64().filter(|value|*value>0.0),"modifiedAt":modified,
+                    "startDate":reading_date(&status["start_date"]),"finishDate":reading_date(&status["finish_date"]),
+                    "totalChapters":payload["num_chapters"].as_u64().filter(|value|*value>0),
+                    "totalVolumes":payload["num_volumes"].as_u64().filter(|value|*value>0)}),
                 )
             }
             "update" => {
@@ -251,8 +274,8 @@ mod tests {
     use super::*;
     #[test]
     fn rereading_and_scores_are_preserved() {
-        assert_eq!(canonical_status("reading", true), "REPEATING");
-        let form = update_form(&json!({"status":"REPEATING","chapter":12.4,"score":85}));
+        assert_eq!(canonical_status("reading", true), "rereading");
+        let form = update_form(&json!({"status":"rereading","chapter":12.4,"score":9}));
         assert!(form.contains(&("is_rereading".into(), "true".into())));
         assert!(form.contains(&("score".into(), "9".into())));
         assert!(form.contains(&("num_chapters_read".into(), "12".into())));
