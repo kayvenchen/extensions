@@ -1,6 +1,6 @@
 {
   "counts": {
-    "content": 2,
+    "content": 5,
     "tracker": 2
   },
   "entries": [
@@ -15,12 +15,27 @@
       "availability": "approvalRequired"
     },
     {
+      "id": "LNori",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
+      "id": "MangaFox",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
       "id": "MyAnimeList",
       "kind": "tracker",
       "availability": "approvalRequired"
     },
     {
       "id": "NHentai",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
+      "id": "OmegaScans",
       "kind": "content",
       "availability": "approvalRequired"
     }

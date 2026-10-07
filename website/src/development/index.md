@@ -3,7 +3,7 @@
 
 # Development
 
-Extensions are Rust crates compiled to native WebAssembly using the shared manko-sdk. The catalog contains AniList, MyAnimeList, HitomiLA and NHentai.
+Extensions are Rust crates compiled to native WebAssembly using the shared manko-sdk. The catalog contains AniList, MyAnimeList, HitomiLA, NHentai, LNORI, MangaFox and Omega Scans.
 
 ```sh
 npm ci

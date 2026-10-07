@@ -9,12 +9,24 @@
       "id": "HitomiLA"
     },
     {
+      "kind": "content",
+      "id": "LNori"
+    },
+    {
+      "kind": "content",
+      "id": "MangaFox"
+    },
+    {
       "kind": "tracker",
       "id": "MyAnimeList"
     },
     {
       "kind": "content",
       "id": "NHentai"
+    },
+    {
+      "kind": "content",
+      "id": "OmegaScans"
     }
   ]
 }

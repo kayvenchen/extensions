@@ -69,7 +69,7 @@
       "id": "HitomiLA",
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
-      "version": "2.0.5",
+      "version": "2.0.6",
       "icon": "icons/HitomiLA.svg",
       "languages": [
         "en",
@@ -128,9 +128,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/HitomiLA/2.0.5/main.wasm",
-        "sha256": "f0544e41fec6b1bc4b2605e3bd80ee5b2d22c08d2e90f6fcdb3df08ba61b1274",
-        "size": 1692741,
+        "moduleURL": "sources/HitomiLA/2.0.6/main.wasm",
+        "sha256": "06868aeac188956c0ce3b1e5f0ad4fbe81de5416beff6643155595bca3e13685",
+        "size": 1694549,
         "allowedHTTPSHosts": [
           "hitomi.la",
           "ltn.gold-usergeneratedcontent.net",
@@ -138,6 +138,128 @@
           "a1.gold-usergeneratedcontent.net",
           "a2.gold-usergeneratedcontent.net",
           "tagindex.hitomi.la"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "LNori",
+      "name": "LNORI",
+      "description": "English light-novel discovery, series details, and XHTML volume reading from lnori.com.",
+      "version": "0.1.0",
+      "icon": "icons/LNori.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "MATURE",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "filters"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=LNori",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/LNori/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/LNori",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/LNori/0.1.0/main.wasm",
+        "sha256": "d085fefc6dd3cfa39d0d8934481af6f4e8efef22da700acf98258009c27e18c8",
+        "size": 1247212,
+        "allowedHTTPSHosts": [
+          "lnori.com",
+          "cdn.lnori.com",
+          "img.lnori.com"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "MangaFox",
+      "name": "MangaFox",
+      "description": "Manga discovery, title search, and lazy image-page reading from fanfox.net.",
+      "version": "0.1.0",
+      "icon": "icons/MangaFox.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "MATURE",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaFox",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaFox/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaFox",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MangaFox/0.1.0/main.wasm",
+        "sha256": "d8d4ca75bff5b02683095c240d694ccf71c5d5d0c9b9de1ad67dae6532046ba6",
+        "size": 1208575,
+        "allowedHTTPSHosts": [
+          "fanfox.net",
+          "m.fanfox.net",
+          "fmcdn.mfcdn.net",
+          "zjcdn.mangafox.me",
+          "c.mfcdn.net"
         ],
         "authenticationModes": [
           "none"
@@ -261,6 +383,67 @@
           "nhentai.net",
           "i.nhentai.net",
           "t.nhentai.net"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "OmegaScans",
+      "name": "Omega Scans",
+      "description": "Comic discovery, search, and free chapter reading from omegascans.org.",
+      "version": "0.1.0",
+      "icon": "icons/OmegaScans.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "ADULT",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "filters",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=OmegaScans",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/OmegaScans/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/OmegaScans",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/OmegaScans/0.1.0/main.wasm",
+        "sha256": "00fc18d177edcc66e25474eb2f3c87dbc72ff82279179ea658b096285daf1fa7",
+        "size": 1594244,
+        "allowedHTTPSHosts": [
+          "omegascans.org",
+          "api.omegascans.org",
+          "media.omegascans.org"
         ],
         "authenticationModes": [
           "none"

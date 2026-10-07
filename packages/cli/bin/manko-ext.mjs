@@ -5,6 +5,7 @@
  */
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import { validateModule } from "../lib/wasm.mjs";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
@@ -86,10 +87,19 @@ function compile() {
     `--remap-path-prefix=${ROOT}=/manko-extensions`,
     `--remap-path-prefix=${resolve(process.env.CARGO_HOME || join(homedir(), ".cargo"))}=/cargo`
   ];
-  execFileSync(process.env.CARGO || "cargo", ["build","--workspace","--lib","--examples","--release","--locked","--target","wasm32-unknown-unknown"], {
-    cwd:ROOT, stdio:"inherit",
-    env:{...process.env,CARGO_ENCODED_RUSTFLAGS:flags.join("\u001f")}
-  });
+  // Build each extension with its own dependency features. Adding an HTML
+  // provider must not silently change unrelated released module bytes.
+  const entries = readdirSync(join(ROOT, "extensions"), {withFileTypes:true})
+    .filter(entry => entry.isDirectory()).flatMap(kind =>
+      readdirSync(join(ROOT, "extensions", kind.name), {withFileTypes:true})
+        .filter(entry => entry.isDirectory()).map(entry =>
+          JSON.parse(readFileSync(join(ROOT, "extensions", kind.name, entry.name, "extension.json"))).crate));
+  for (const crate of entries.sort()) {
+    execFileSync(process.env.CARGO || "cargo", ["build","-p",crate,"--lib","--examples","--release","--locked","--target","wasm32-unknown-unknown"], {
+      cwd:ROOT, stdio:"inherit",
+      env:{...process.env,CARGO_ENCODED_RUSTFLAGS:flags.join("\u001f")}
+    });
+  }
 }
 
 async function seedCatalog() {

@@ -7,7 +7,7 @@
 ## General
 
 ::: details Are any extensions published right now?
-Yes. The catalog lists two content extensions (HitomiLA and NHentai) and two tracker extensions (AniList and MyAnimeList).
+Yes. The catalog lists five content extensions (HitomiLA, NHentai, LNORI, MangaFox and Omega Scans) and two tracker extensions (AniList and MyAnimeList).
 :::
 
 ::: details What extension types are supported?

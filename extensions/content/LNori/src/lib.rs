@@ -1,0 +1,424 @@
+// Copyright 2026 manko Extension Contributors; SPDX-License-Identifier: Apache-2.0
+use manko_sdk::{
+    content::{configuration, suggestions, validate_search},
+    error, page, text, Context, Operation, Result,
+};
+use manko_site_support::{self as site, scraper::Html};
+use serde_json::{json, Value};
+use std::collections::HashSet;
+const BASE: &str = "https://lnori.com/";
+const HOSTS: &[&str] = &["lnori.com", "cdn.lnori.com", "img.lnori.com"];
+const AGENT: &str = "manko LNori Extension/0.1.0 (+https://github.com/k800k/extensions)";
+fn identity(value: &str) -> Result<&str> {
+    let parts: Vec<_> = value.split('/').collect();
+    if parts.len() != 2 {
+        return Err(error(
+            "Invalid series or volume identifier",
+            "invalidIdentifier",
+        ));
+    }
+    manko_sdk::id(&json!(parts[0]))?;
+    site::slug(parts[1])?;
+    Ok(value)
+}
+fn path(value: &str, category: &str) -> Result<String> {
+    let url = site::link(value, BASE, &["lnori.com"])?;
+    let url = url::Url::parse(&url).map_err(|_| site::invalid())?;
+    if url.query().is_some() || url.fragment().is_some() {
+        return Err(site::invalid());
+    }
+    let id = url
+        .path()
+        .strip_prefix(&format!("/{category}/"))
+        .ok_or_else(site::invalid)?;
+    Ok(identity(id)?.to_owned())
+}
+fn filters() -> Value {
+    configuration(
+        "lnori-search",
+        "LNORI",
+        &[("genre", "Genre"), ("author", "Author")],
+        &[
+            ("relevance", "Relevance"),
+            ("title", "Title"),
+            ("year", "Year Released"),
+            ("volumes", "Volumes"),
+        ],
+        &["en"],
+    )
+}
+async fn catalog(context: &Context) -> Result<Value> {
+    context
+        .remember(
+            "lnori:catalog:v3",
+            Some(300.0),
+            async {
+                let html =
+                    site::document(context, &format!("{BASE}library"), BASE, HOSTS, AGENT).await?;
+                let mut rows = Vec::new();
+                for (index, block) in site::blocks(&html, "article")
+                    .filter(|b| b.header.contains("class=\"card\""))
+                    .enumerate()
+                {
+                    if index % 100 == 0 {
+                        context.now().await?;
+                    }
+                    let figure = site::blocks(block.body, "figure")
+                        .next()
+                        .ok_or_else(site::invalid)?;
+                    rows.push(Value::String(format!("{}{}", block.header, figure.whole)));
+                }
+                if rows.is_empty() {
+                    return Err(site::invalid());
+                }
+                context.now().await?;
+                Ok(Value::Array(rows))
+            },
+            |v| {
+                if v.as_array()
+                    .is_none_or(|rows| rows.is_empty() || rows.iter().any(|r| !r.is_string()))
+                {
+                    return Err(site::invalid());
+                }
+                Ok(())
+            },
+        )
+        .await
+}
+fn row_attr(row: &Value, name: &str) -> String {
+    site::tag_header(text(row), "article")
+        .and_then(|h| site::attribute(h, name))
+        .unwrap_or_default()
+}
+fn hydrate(row: &Value) -> Result<Value> {
+    let html = text(row);
+    let anchor = site::tag_header(html, "a").ok_or_else(site::invalid)?;
+    let href = site::attribute(anchor, "href").ok_or_else(site::invalid)?;
+    let id = if let Some(id) = href.strip_prefix("/series/") {
+        identity(id)?.to_owned()
+    } else {
+        path(&href, "series")?
+    };
+    if id.split('/').next() != Some(row_attr(row, "data-id").as_str()) {
+        return Err(site::invalid());
+    }
+    let title = row_attr(row, "data-t");
+    if title.is_empty() {
+        return Err(site::invalid());
+    }
+    let image = site::tag_header(html, "img")
+        .and_then(|h| site::attribute(h, "src"))
+        .ok_or_else(site::invalid)?;
+    Ok(site::card(
+        &id,
+        &title,
+        &site::link(&image, BASE, HOSTS)?,
+        "lightNovel",
+    ))
+}
+fn parse_series(html: &str, id: &str) -> Result<Value> {
+    let schema = site::blocks(html, "script")
+        .filter(|b| b.header.contains("application/ld+json"))
+        .filter_map(|b| serde_json::from_str::<Value>(b.body).ok())
+        .find(|v| v["hasPart"].is_array())
+        .ok_or_else(site::invalid)?;
+    if path(text(&schema["url"]), "series")? != id {
+        return Err(site::invalid());
+    }
+    let title = text(&schema["name"]);
+    if title.is_empty() {
+        return Err(site::invalid());
+    }
+    let image = site::link(text(&schema["image"]), BASE, HOSTS)?;
+    let mut value = site::details(
+        site::card(id, title, &image, "lightNovel"),
+        text(&schema["description"]),
+        text(&schema["author"]["name"]),
+        "unknown",
+        "MATURE",
+        text(&schema["url"]),
+    );
+    let mut volumes = Vec::new();
+    let mut seen = HashSet::new();
+    for part in schema["hasPart"].as_array().unwrap() {
+        let book = path(text(&part["url"]), "book")?;
+        if !seen.insert(book.split('/').next().unwrap().to_owned()) {
+            continue;
+        }
+        let number = part["position"]
+            .as_f64()
+            .or_else(|| text(&part["position"]).parse().ok())
+            .filter(|n| n.is_finite() && *n > 0.0)
+            .ok_or_else(site::invalid)?;
+        volumes.push(json!({"installmentId":book,"workId":id,"title":part["name"],"number":number,"volume":number,"langCode":"en","format":"xhtml"}));
+    }
+    value["volumes"] = json!(volumes);
+    Ok(value)
+}
+async fn series(context: &Context, id: &str) -> Result<Value> {
+    identity(id)?;
+    context
+        .remember(
+            &format!("lnori:series:{id}"),
+            Some(1800.0),
+            async {
+                parse_series(
+                    &site::document(context, &format!("{BASE}series/{id}"), BASE, HOSTS, AGENT)
+                        .await?,
+                    id,
+                )
+            },
+            |v| {
+                if v["workId"] != id || !v["volumes"].is_array() {
+                    return Err(site::invalid());
+                }
+                site::link(text(&v["imageUrl"]), BASE, HOSTS)?;
+                Ok(())
+            },
+        )
+        .await
+}
+async fn parse_book(context: &Context, html: &str, book: &str, work: &str) -> Result<Value> {
+    let schema = site::blocks(html, "script")
+        .filter(|b| b.header.contains("application/ld+json"))
+        .filter_map(|b| serde_json::from_str::<Value>(b.body).ok())
+        .find(|v| v["additionalProperty"].is_array())
+        .ok_or_else(site::invalid)?;
+    let property = |name| {
+        schema["additionalProperty"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|v| v["name"] == name)
+            .map(|v| text(&v["value"]))
+            .unwrap_or("")
+    };
+    if text(&schema["id"]) != book.split('/').next().unwrap()
+        || format!("{}/{}", property("series_id"), property("series_slug")) != work
+    {
+        return Err(site::invalid());
+    }
+    let heading = site::blocks(html, "h1")
+        .find(|b| b.header.contains("id=\"book-title\""))
+        .ok_or_else(site::invalid)?;
+    let title = site::field(&Html::parse_fragment(heading.whole), "h1");
+    if title.is_empty() {
+        return Err(site::invalid());
+    }
+    let article = site::blocks(html, "article")
+        .find(|b| b.header.contains("class=\"content-body"))
+        .ok_or_else(site::invalid)?;
+    let mut output = format!(
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>{}</title></head><body>",
+        site::escape(&title)
+    );
+    if site::tag_header(article.body, "section").is_none() {
+        return Err(site::invalid());
+    }
+    // Stream the complete reading body once. Volume markup contains nested
+    // sections, which must not be scanned as separate duplicated chapters.
+    output.push_str(
+        &site::reading_fragment(context, article.body, &format!("{BASE}book/{book}"), HOSTS)
+            .await?,
+    );
+    context.now().await?;
+    output.push_str("</body></html>");
+    if output.len() > 2 * 1024 * 1024 {
+        return Err(error(
+            "Volume text exceeds the app's supported size",
+            "invalidResponse",
+        ));
+    }
+    Ok(json!({"id":book,"workId":work,"mimeType":"application/xhtml+xml","text":output}))
+}
+fn run(context: Context, method: String, args: Value) -> Operation {
+    Box::pin(async move {
+        match method.as_str() {
+            "initialize" | "invalidateCache" => Ok(Value::Null),
+            "settings" => Ok(json!({"id":"settings","title":"LNORI","fields":[]})),
+            "discoverSections" => Ok(json!([{"id":"library","title":"Library","type":0}])),
+            "searchFilters" => Ok(filters()),
+            "searchSuggestions" => {
+                let data = catalog(&context).await?;
+                let mut values = Vec::new();
+                let mut seen = HashSet::new();
+                for (index, item) in data.as_array().unwrap().iter().enumerate() {
+                    if index % 50 == 0 {
+                        context.now().await?;
+                    }
+                    let field = text(&args["fieldID"]);
+                    if field.is_empty() || field == "author" {
+                        let author = row_attr(item, "data-a");
+                        if !author.is_empty() && seen.insert(("author", author.clone())) {
+                            values.push(json!({"fieldID":"author","value":author,"title":author}));
+                        }
+                    }
+                    if field.is_empty() || field == "genre" {
+                        for genre in row_attr(item, "data-tags")
+                            .split(',')
+                            .map(|s| s.trim().to_lowercase())
+                            .filter(|s| !s.is_empty())
+                        {
+                            if seen.insert(("genre", genre.clone())) {
+                                values.push(json!({"fieldID":"genre","value":genre,"title":genre}));
+                            }
+                        }
+                    }
+                }
+                drop(data);
+                context.now().await?;
+                Ok(suggestions(&args, values))
+            }
+            "search" | "discover" => {
+                validate_search(&filters(), &args)?;
+                if method == "discover"
+                    && args["sectionId"]
+                        .as_str()
+                        .or(args["section"]["id"].as_str())
+                        .is_some_and(|id| id != "library")
+                {
+                    return Err(error("Unknown discovery section", "invalidSection"));
+                }
+                let page = page(&args, 1_000_000)?;
+                let data = catalog(&context).await?;
+                let query = text(&args["query"]).trim().to_lowercase();
+                if query.len() > 500 {
+                    return Err(error("Search query is too long", "invalidSearchTerm"));
+                }
+                let sort = args["sort"].as_str().unwrap_or("relevance");
+                let field = match sort {
+                    "year" => "data-d",
+                    "volumes" => "data-v",
+                    _ => "data-rel",
+                };
+                let mut seen = HashSet::new();
+                let mut rows = Vec::new();
+                for (index, item) in data.as_array().unwrap().iter().enumerate() {
+                    if index % 50 == 0 {
+                        context.now().await?;
+                    }
+                    if !seen.insert(row_attr(item, "data-id")) {
+                        continue;
+                    }
+                    if !(query.is_empty()
+                        || row_attr(item, "data-t").to_lowercase().contains(&query)
+                        || row_attr(item, "data-a").to_lowercase().contains(&query))
+                    {
+                        continue;
+                    }
+                    if !args["selections"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .all(|s| {
+                            let value = text(&s["value"]).to_lowercase();
+                            let matches = if s["fieldID"] == "genre" {
+                                row_attr(item, "data-tags")
+                                    .split(',')
+                                    .any(|g| g.trim().eq_ignore_ascii_case(&value))
+                            } else {
+                                row_attr(item, "data-a").to_lowercase().contains(&value)
+                            };
+                            matches != (s["polarity"] == "exclude")
+                        })
+                    {
+                        continue;
+                    }
+                    rows.push((
+                        item,
+                        if sort == "title" {
+                            row_attr(item, "data-t").to_lowercase()
+                        } else {
+                            String::new()
+                        },
+                        row_attr(item, field).parse::<u64>().unwrap_or(0),
+                    ));
+                }
+                if sort == "title" {
+                    rows.sort_by(|a, b| a.1.cmp(&b.1));
+                } else {
+                    rows.sort_by(|a, b| b.2.cmp(&a.2));
+                }
+                let items: Vec<_> = rows.into_iter().map(|r| r.0).collect();
+                let start = (page as usize - 1) * 25;
+                let next = if start + 25 < items.len() {
+                    json!({"page":page+1})
+                } else {
+                    Value::Null
+                };
+                let cards = items
+                    .into_iter()
+                    .skip(start)
+                    .take(25)
+                    .map(hydrate)
+                    .collect::<Result<Vec<_>>>()?;
+                drop(data);
+                context.now().await?;
+                Ok(json!({"items":cards,"metadata":next}))
+            }
+            "details" => {
+                let mut value = series(&context, text(&args)).await?;
+                value.as_object_mut().unwrap().remove("volumes");
+                Ok(value)
+            }
+            "installments" => Ok(series(&context, text(&args["workId"])).await?["volumes"].clone()),
+            "publicationContent" => {
+                let book = identity(text(&args["installmentId"]))?;
+                let work = identity(text(&args["workId"]))?;
+                if !series(&context, work).await?["volumes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|v| v["installmentId"] == book)
+                {
+                    return Err(error("Unknown volume for this series", "invalidIdentifier"));
+                }
+                context
+                    .remember(
+                        &format!("lnori:book:{book}"),
+                        Some(1800.0),
+                        async {
+                            parse_book(
+                                &context,
+                                &site::document(
+                                    &context,
+                                    &format!("{BASE}book/{book}"),
+                                    BASE,
+                                    HOSTS,
+                                    AGENT,
+                                )
+                                .await?,
+                                book,
+                                work,
+                            )
+                            .await
+                        },
+                        |v| {
+                            if v["id"] == book
+                                && v["workId"] == work
+                                && v["mimeType"] == "application/xhtml+xml"
+                                && v["text"].is_string()
+                            {
+                                Ok(())
+                            } else {
+                                Err(site::invalid())
+                            }
+                        },
+                    )
+                    .await
+            }
+            "imagePageContent" => {
+                site::image(
+                    &context,
+                    text(&args["url"]),
+                    BASE,
+                    &["cdn.lnori.com", "img.lnori.com"],
+                    AGENT,
+                )
+                .await
+            }
+            _ => Err(error("Unsupported operation", "unsupportedOperation")),
+        }
+    })
+}
+manko_sdk::export_extension!("LNori", "content", run);

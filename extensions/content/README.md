@@ -1,6 +1,6 @@
 # Content extensions
 
-The catalog contains 17 content packages. Each package includes a manifest, implementation, icon, license, source provenance where applicable, and contract and behavior tests.
+The catalog contains five content packages. Each package includes a manifest, implementation, icon, license, source provenance where applicable, and contract and behavior tests.
 
 Create a new scaffold from the repository root with:
 

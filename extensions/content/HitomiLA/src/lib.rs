@@ -14,6 +14,7 @@ use std::sync::LazyLock;
 const STATIC: &str = "https://ltn.gold-usergeneratedcontent.net";
 const INDEX_CHUNK_BYTES: u64 = 16 * 1024;
 const CATALOG_PAGE_SIZE: u64 = 5;
+const CATALOG_INDEX_SIZE: u64 = 25;
 const MAX_CATALOG_OFFSET: u64 = 16 * 1024 * 1024 / 4;
 static PAGE_HOST: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^a(?:[1-9][0-9]{0,2}|1000)\.gold-usergeneratedcontent\.net$").unwrap()
@@ -771,6 +772,8 @@ async fn nozomi_range(
 }
 async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
     let mut result = vec![];
+    let mut seen = HashSet::new();
+    let ids: Vec<_> = ids.iter().copied().filter(|id| seen.insert(*id)).collect();
     for chunk in ids.chunks(4) {
         let cards = futures::future::join_all(chunk.iter().map(|id| async move {
             let gallery = gallery_card(context, &id.to_string()).await?;
@@ -1059,28 +1062,33 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         } else {
             "index".into()
         };
-        let window_offset = offset / CATALOG_PAGE_SIZE * CATALOG_PAGE_SIZE;
+        let window_offset = offset / CATALOG_INDEX_SIZE * CATALOG_INDEX_SIZE;
         let start = window_offset * 4;
         let (bytes, total) = nozomi_range(
             context,
             &format!("{STATIC}/n/{path}-{language}.nozomi"),
             start,
-            CATALOG_PAGE_SIZE * 4,
+            CATALOG_INDEX_SIZE * 4,
         )
         .await?;
         let ids = nozomi(&bytes)?;
+        let relative_offset = (offset - window_offset) as usize;
+        let mut seen: HashSet<_> = ids.iter().take(relative_offset).copied().collect();
         // The first title is selectable while the rest of its cached window hydrates.
         let ids: Vec<_> = ids
             .into_iter()
-            .skip((offset - window_offset) as usize)
+            .skip(relative_offset)
             .take(if offset == 0 {
                 1
             } else {
-                CATALOG_PAGE_SIZE as usize
+                (CATALOG_PAGE_SIZE - offset % CATALOG_PAGE_SIZE) as usize
             })
             .collect();
         let next_offset = offset + ids.len() as u64;
         let has_next = !ids.is_empty() && next_offset * 4 < total;
+        // Cursor positions count consumed IDs, including duplicates. Never reuse
+        // a gallery already consumed within this bounded index window.
+        let ids: Vec<_> = ids.into_iter().filter(|id| seen.insert(*id)).collect();
         return Ok(
             json!({"items":cards(context,&ids).await?,"metadata":if has_next {json!({"offset":next_offset})} else {Value::Null}}),
         );
