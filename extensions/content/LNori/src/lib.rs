@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::collections::HashSet;
 const BASE: &str = "https://lnori.com/";
 const HOSTS: &[&str] = &["lnori.com", "cdn.lnori.com", "img.lnori.com"];
-const AGENT: &str = "manko LNori Extension/0.1.0 (+https://github.com/k800k/extensions)";
+const AGENT: &str = "manko LNori Extension/0.1.1 (+https://github.com/k800k/extensions)";
 fn identity(value: &str) -> Result<&str> {
     let parts: Vec<_> = value.split('/').collect();
     if parts.len() != 2 {
@@ -362,6 +362,14 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                 Ok(value)
             }
             "installments" => Ok(series(&context, text(&args["workId"])).await?["volumes"].clone()),
+            "publicationStream" => {
+                let book = identity(text(&args["installmentId"]))?;
+                let work = identity(text(&args["workId"]))?;
+                // Native incremental parsing validates the book's structured
+                // identity before delivering any text. Do not fetch the volume here.
+                Ok(json!({"id":book,"workId":work,"url":format!("{BASE}book/{book}"),
+                    "headers":{"Referer":BASE,"User-Agent":AGENT,"Accept":"text/html"}}))
+            }
             "publicationContent" => {
                 let book = identity(text(&args["installmentId"]))?;
                 let work = identity(text(&args["workId"]))?;

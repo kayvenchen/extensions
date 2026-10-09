@@ -229,7 +229,8 @@ async function buildArtifacts() {
         sha256: sha256(script),
         size: script.length,
         allowedHTTPSHosts: metadata.allowedHTTPSHosts,
-        authenticationModes: metadata.authenticationModes
+        authenticationModes: metadata.authenticationModes,
+        ...(metadata.connectorKind ? { connectorKind: metadata.connectorKind } : {})
       }
     };
     sources.push(source);

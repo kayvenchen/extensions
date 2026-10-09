@@ -95,7 +95,11 @@ export async function assertExtensionPackage(directory, expectedKind, expectedID
   assertStringArray(metadata.capabilities, "capabilities", repositoryCapabilities);
   assertStringArray(metadata.permissions, "permissions", extensionPermissions, { required: true });
   assert.ok(metadata.permissions.includes("network"), "network permission is required by this catalog");
-  assertStringArray(metadata.allowedHTTPSHosts, "allowedHTTPSHosts", undefined, { required: true });
+  if (metadata.connectorKind !== undefined) {
+    assert.equal(expectedKind, "content", "connectors must be content extensions");
+    assert.equal(metadata.connectorKind, "komga", "unsupported connector profile");
+  }
+  assertStringArray(metadata.allowedHTTPSHosts, "allowedHTTPSHosts", undefined, { required: metadata.connectorKind === undefined });
   assert.ok(metadata.allowedHTTPSHosts.every(isAllowedHTTPSHost), "allowedHTTPSHosts must contain exact public lower-case hostnames or explicit *. subdomain patterns");
   assertStringArray(metadata.authenticationModes, "authenticationModes", authenticationModes, { required: true });
   assert.ok(Array.isArray(metadata.developers) && metadata.developers.length > 0, "developers must not be empty");

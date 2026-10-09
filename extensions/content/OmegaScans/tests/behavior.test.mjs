@@ -4,7 +4,20 @@ import assert from "node:assert/strict";
 import {resolve} from "node:path";
 import {loadContentExtension,runtimeResponse,metadataCacheFixture,MINIMAL_WEBP_BYTES} from "../../test-runtime.mjs";
 const main=resolve(import.meta.dirname,"../main.wasm");
-const series={id:7,series_slug:"sample-comic",title:"Sample Comic",series_type:"Comic",thumbnail:"https://media.omegascans.org/file/zFSsXt/cover.webp",author:"Sample Creator",description:"Sample synopsis",status:"Ongoing",tags:"$b"};
+test("Omega normalizes the live JPEG MIME alias while preserving native image handles", async () => {
+ for (const mimeType of ["image/jpg", "IMAGE/JPG; charset=binary"]) {
+  const loaded = await loadContentExtension(main, request => ({
+   ...runtimeResponse({url: request.url, mimeType}), resourceID: "native-jpeg-fixture"
+  }));
+  const image = await loaded.extension.imagePageContent({url: "https://media.omegascans.org/page.jpg"});
+  assert.equal(image.mimeType, "image/jpeg");
+  assert.equal(image.resourceID, "native-jpeg-fixture");
+  assert.equal(image.dataBase64, undefined);
+ }
+ const invalid = await loadContentExtension(main, request => runtimeResponse({url: request.url, mimeType: "text/html", text: "not an image"}));
+ await assert.rejects(invalid.extension.imagePageContent({url: "https://media.omegascans.org/page.jpg"}), {type: "invalidResponse"});
+});
+const series={id:7,series_slug:"sample-comic",title:"Sample Comic",series_type:"Comic",thumbnail:"https://media.omegascans.org/file/zFSsXt/cover.webp",author:"Sample Creator",description:"<p>Sample &amp; <strong>formatted</strong> synopsis.</p><p>Second paragraph.</p>",status:"Ongoing",tags:"$b"};
 const chapter=(slug,price=0)=>({chapter_slug:slug,chapter_name:slug.replace('chapter-','Chapter '),price,series:{id:7,series_slug:"sample-comic"},created_at:"2026-10-01T00:00:00.000Z"});
 function flight(records){return records.map((r,i)=>`<script>self.__next_f.push(${JSON.stringify([1,`${i===0?'a':'b'}:${JSON.stringify(r)}\n`])})</script>`).join('');}
 function responder(request){
@@ -28,7 +41,7 @@ test("Omega maps catalog pagination, duplicates, structured genres and cache reu
  const restarted=await loadContentExtension(main,responder,{cache});await restarted.extension.search({query:"sample & comic",sort:"total_views",selections:[{fieldID:"genre",value:"1"}]});assert.equal(restarted.calls.length,0);
 });
 test("Omega decodes public Flight data, lists free chapters and brokers their images",async()=>{
- const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});const detail=await loaded.extension.details("sample-comic");assert.equal(detail.workInfo.author,"Sample Creator");
+ const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});const detail=await loaded.extension.details("sample-comic");assert.equal(detail.workInfo.author,"Sample Creator");assert.equal(detail.workInfo.synopsis,"Sample & formatted synopsis. Second paragraph.");
  const chapters=await loaded.extension.installments(detail);assert.equal(chapters.length,1);assert.equal(chapters[0].installmentId,"sample-comic/chapter-1");assert.equal(chapters[0].number,1);
  const sequence=await loaded.extension.imagePages(chapters[0]);assert.equal(sequence.pages.length,2);
  await loaded.extension.imagePages(chapters[0]);assert.equal(loaded.calls.length,3);

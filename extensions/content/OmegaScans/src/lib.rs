@@ -12,7 +12,7 @@ const HOSTS: &[&str] = &[
     "api.omegascans.org",
     "media.omegascans.org",
 ];
-const AGENT: &str = "manko OmegaScans Extension/0.1.0 (+https://github.com/k800k/extensions)";
+const AGENT: &str = "manko OmegaScans Extension/0.1.1 (+https://github.com/k800k/extensions)";
 fn filters() -> Value {
     let mut config = configuration(
         "omega-search",
@@ -197,7 +197,7 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                 let data = series(&context, id).await?;
                 Ok(site::details(
                     card(&data)?,
-                    text(&data["description"]),
+                    &site::plain(site::scraper::Html::parse_fragment(text(&data["description"])).root_element()),
                     text(&data["author"]),
                     &text(&data["status"]).to_lowercase(),
                     "ADULT",
@@ -262,14 +262,25 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                     .await
             }
             "imagePageContent" => {
-                site::image(
+                let mut response = site::request(
                     &context,
                     text(&args["url"]),
                     BASE,
                     &["media.omegascans.org"],
                     AGENT,
+                    true,
                 )
-                .await
+                .await?;
+                // The live media CDN labels JPEGs with the nonstandard jpg
+                // alias. Normalize only that alias, retaining native handles
+                // and the SDK's rejection of HTML and unsupported formats.
+                let mime = response["mimeType"].as_str()
+                    .unwrap_or_else(|| manko_sdk::header(&response, "content-type"))
+                    .split(';').next().unwrap_or("").trim();
+                if mime.eq_ignore_ascii_case("image/jpg") {
+                    response["mimeType"] = json!("image/jpeg");
+                }
+                manko_sdk::content::image(&response)
             }
             _ => Err(error("Unsupported operation", "unsupportedOperation")),
         }

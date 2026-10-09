@@ -8,9 +8,9 @@ import {resolve} from "node:path";
 import {validateModule, instantiate} from "../lib/wasm.mjs";
 import {assertExtensionPackage} from "../lib/contracts.mjs";
 const root=resolve(import.meta.dirname,"../../..");
-const ids=["AniList","HitomiLA","LNori","MangaFox","MyAnimeList","NHentai","OmegaScans"];
+const ids=["AniList","HitomiLA","Komga","LNori","MangaFire","MangaFox","MyAnimeList","NHentai","OmegaScans"];
 
-test("Catalog contains all seven WASM extensions with matching digests",async()=>{
+test("Catalog contains all nine WASM extensions with matching digests",async()=>{
   const manifest=JSON.parse(await readFile(resolve(root,"dist/v1/stable/versioning.json")));
   assert.equal(manifest.schemaVersion,2);
   assert.deepEqual(manifest.sources.map(entry=>entry.id),ids);

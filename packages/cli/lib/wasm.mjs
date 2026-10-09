@@ -33,4 +33,10 @@ export function instantiate(bytes) {
 export function validateModule(bytes,metadata) {
   const {dispatch} = instantiate(bytes);
   assert.deepEqual(dispatch({action:"metadata"}), {id:metadata.id,kind:metadata.kind,apiVersion:"2.0",imageRequestMode:"independent",cachePolicy:"metadata"});
+  const connectorKind = metadata.connectorKind ?? metadata.extension?.connectorKind;
+  if (connectorKind) {
+    const result = dispatch({action:"invoke",invocationID:"connector-validation",method:"connectorInfo",arguments:{}});
+    assert.equal(result.ok,true,"connector profile metadata is required");
+    assert.deepEqual(result.value,{kind:connectorKind,version:1});
+  }
 }

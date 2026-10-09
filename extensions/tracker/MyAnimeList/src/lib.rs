@@ -256,7 +256,7 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 let next = if text(&payload["paging"]["next"]).is_empty() {
                     Value::Null
                 } else {
-                    json!({"value":json!({"offset":offset.saturating_add(100)}).to_string()})
+                    json!({"value":json!({"offset":offset.saturating_add(100)}).to_string(),"metadata":{}})
                 };
                 Ok(json!({"items":items,"nextPage":null,"totalCount":null,"nextCursor":next}))
             }

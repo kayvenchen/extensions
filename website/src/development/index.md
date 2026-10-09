@@ -3,7 +3,7 @@
 
 # Development
 
-Extensions are Rust crates compiled to native WebAssembly using the shared manko-sdk. The catalog contains AniList, MyAnimeList, HitomiLA, NHentai, LNORI, MangaFox and Omega Scans.
+Extensions are Rust crates compiled to native WebAssembly using the shared manko-sdk. The catalog contains AniList, MyAnimeList, HitomiLA, NHentai, LNORI, MangaFox, MangaFire, Omega Scans and the Komga connector pilot.
 
 ```sh
 npm ci
@@ -33,3 +33,7 @@ CI verifies hashes, byte counts and ABI metadata against both committed and rebu
 ## Release Coordination
 
 Publish API 2.0 artifacts only alongside a WASM-capable Manko release. Existing installations require the user to select Update. JavaScript is never executed during metadata import or backup restoration, and failed updates leave the prior record intact. Native server connections and compatible independent repositories remain supported.
+
+## Server connectors
+
+Komga is an API 2.0 content package with `connectorKind: "komga"` and connector profile v1. It uses the same compiler, SDK, bundler and validation commands. One installed module can serve several native connections. Manko keeps setup, credentials, stable library IDs and file downloads native; Rust handles the server API. Existing connections opt in through Source Settings. Connector publication requires the corresponding app support.

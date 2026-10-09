@@ -1,0 +1,55 @@
+{
+  "id": "Komga",
+  "name": "Komga",
+  "description": "Connect to your own Komga servers. Connection details, credentials and publication downloads are managed by manko.",
+  "kind": "content",
+  "apiVersion": "2.0",
+  "runtime": "wasm",
+  "crate": "manko-komga",
+  "connectorKind": "komga",
+  "version": "0.1.0",
+  "language": "en",
+  "languages": [
+    "en"
+  ],
+  "contentRating": "SAFE",
+  "availability": "approvalRequired",
+  "capabilities": [
+    "browse",
+    "search",
+    "filters",
+    "details",
+    "installments",
+    "authentication",
+    "acquisition"
+  ],
+  "permissions": [
+    "network",
+    "redactedLogging"
+  ],
+  "allowedHTTPSHosts": [],
+  "authenticationModes": [
+    "none",
+    "basic",
+    "apiKey"
+  ],
+  "developers": [
+    {
+      "name": "manko Extension Contributors"
+    }
+  ],
+  "iconFile": "icon.svg",
+  "license": "Apache-2.0",
+  "homepage": "https://komga.org",
+  "compatibility": {
+    "adapter": "native-rust-wasm",
+    "status": "supported",
+    "scope": "connector",
+    "note": "Requires manko connector profile v1. Publish only alongside a connector-capable app release.",
+    "limitations": [
+      "User-owned servers only. Progress write-back is not implemented."
+    ],
+    "runtime": "native-wasm",
+    "apiVersion": "2.0"
+  }
+}

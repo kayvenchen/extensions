@@ -53,8 +53,8 @@
         "apiVersion": "2.0",
         "runtime": "wasm",
         "moduleURL": "sources/AniList/2.1.0/main.wasm",
-        "sha256": "52f392f450bf0fa652ecdab313971564aeff7e496ce47085d76d416e3e09170a",
-        "size": 1250834,
+        "sha256": "76cea732cbc8eebb63fe57ad07c54f3f287b920a54f15a1b9b74bf2ac28f1608",
+        "size": 1251420,
         "allowedHTTPSHosts": [
           "anilist.co",
           "graphql.anilist.co",
@@ -145,10 +145,64 @@
       }
     },
     {
+      "id": "Komga",
+      "name": "Komga",
+      "description": "Connect to your own Komga servers. Connection details, credentials and publication downloads are managed by manko.",
+      "version": "0.1.0",
+      "icon": "icons/Komga.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "browse",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "authentication",
+        "acquisition"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=Komga",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Komga/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Komga",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "redactedLogging"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/Komga/0.1.0/main.wasm",
+        "sha256": "9665b62c1d971f9360af6267861aebeb13decbc511cd84233f21be17a6eb60a5",
+        "size": 434538,
+        "allowedHTTPSHosts": [],
+        "authenticationModes": [
+          "none",
+          "basic",
+          "apiKey"
+        ],
+        "connectorKind": "komga"
+      }
+    },
+    {
       "id": "LNori",
       "name": "LNORI",
       "description": "English light-novel discovery, series details, and XHTML volume reading from lnori.com.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "icon": "icons/LNori.svg",
       "languages": [
         "en"
@@ -191,13 +245,82 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/LNori/0.1.0/main.wasm",
-        "sha256": "d085fefc6dd3cfa39d0d8934481af6f4e8efef22da700acf98258009c27e18c8",
-        "size": 1247212,
+        "moduleURL": "sources/LNori/0.1.1/main.wasm",
+        "sha256": "bc54251b54fa9d52c85e70fb9a20eee178935b05b0350f325874ba3b10a7bacf",
+        "size": 1249158,
         "allowedHTTPSHosts": [
           "lnori.com",
           "cdn.lnori.com",
           "img.lnori.com"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "MangaFire",
+      "name": "MangaFire",
+      "description": "Manga discovery, multilingual search, and image chapter reading from mangafire.to.",
+      "version": "0.1.1",
+      "icon": "icons/MangaFire.svg",
+      "languages": [
+        "en",
+        "ja",
+        "fr",
+        "es",
+        "es-la",
+        "pt",
+        "pt-br"
+      ],
+      "contentRating": "ADULT",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaFire",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaFire/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaFire",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MangaFire/0.1.1/main.wasm",
+        "sha256": "63b672263245cb94796b8e6a4b387157a93b48d20c4f4f4d7f9dee53a3da8e3a",
+        "size": 1044867,
+        "allowedHTTPSHosts": [
+          "mangafire.to",
+          "*.mfcdn.nl",
+          "*.mfcdn1.xyz",
+          "*.mfcdn3.xyz",
+          "*.mfcdn2.xyz"
         ],
         "authenticationModes": [
           "none"
@@ -308,8 +431,8 @@
         "apiVersion": "2.0",
         "runtime": "wasm",
         "moduleURL": "sources/MyAnimeList/2.1.0/main.wasm",
-        "sha256": "37d980a802bbefcb556235750a71bc22651e1fc3577f42a1c87e9c7445b03b5e",
-        "size": 431377,
+        "sha256": "907f9aa335a18dbdb26410307148736d634673c4b52880ed42425925c98ee0a2",
+        "size": 431480,
         "allowedHTTPSHosts": [
           "api.myanimelist.net",
           "cdn.myanimelist.net",
@@ -393,7 +516,7 @@
       "id": "OmegaScans",
       "name": "Omega Scans",
       "description": "Comic discovery, search, and free chapter reading from omegascans.org.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "icon": "icons/OmegaScans.svg",
       "languages": [
         "en"
@@ -437,9 +560,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/OmegaScans/0.1.0/main.wasm",
-        "sha256": "00fc18d177edcc66e25474eb2f3c87dbc72ff82279179ea658b096285daf1fa7",
-        "size": 1594244,
+        "moduleURL": "sources/OmegaScans/0.1.1/main.wasm",
+        "sha256": "0e2bf39597a58aeb4c835f99e06ad2539af13672f1e24631e615ddb233cb809a",
+        "size": 2085680,
         "allowedHTTPSHosts": [
           "omegascans.org",
           "api.omegascans.org",

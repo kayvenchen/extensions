@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+  "extensions/content/MangaFire",
+  "extensions/content/Komga",
   "packages/sdk",
   "packages/site-support",
   "extensions/content/HitomiLA",

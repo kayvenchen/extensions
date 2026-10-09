@@ -462,12 +462,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "manko-komga"
+version = "0.1.0"
+dependencies = [
+ "manko-sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "manko-lnori"
 version = "0.1.0"
 dependencies = [
  "manko-sdk",
  "manko-site-support",
  "regex",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "manko-mangafire"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "manko-sdk",
+ "manko-site-support",
  "serde_json",
  "url",
 ]

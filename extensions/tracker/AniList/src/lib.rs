@@ -5,7 +5,8 @@ use serde_json::{json, Value};
 const SEARCH: &str = "query ($search: String, $format: MediaFormat) { Page(page: 1, perPage: 20) { media(search: $search, type: MANGA, format: $format) { id format title { userPreferred english romaji native } coverImage { large } } } }";
 const PROGRESS: &str = "query ($mediaID: Int) { Media(id: $mediaID, type: MANGA) { chapters volumes mediaListEntry { mediaId status score(format: POINT_100) progress progressVolumes updatedAt startedAt { year month day } completedAt { year month day } } } }";
 const UPDATE: &str = "mutation ($mediaID: Int, $status: MediaListStatus, $progress: Int, $progressVolumes: Int, $scoreRaw: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) { SaveMediaListEntry(mediaId: $mediaID, status: $status, progress: $progress, progressVolumes: $progressVolumes, scoreRaw: $scoreRaw, startedAt: $startedAt, completedAt: $completedAt) { mediaId status score progress progressVolumes updatedAt } }";
-const COLLECTIONS: &str = "query { MediaListCollection(type: MANGA, chunk: 1, perChunk: 500) { lists { name entries { mediaId media { id format title { userPreferred english romaji native } coverImage { large } } } } } }";
+const VIEWER: &str = "query { Viewer { id } }";
+const COLLECTIONS: &str = "query ($userID: Int!) { MediaListCollection(type: MANGA, userId: $userID) { lists { name entries { mediaId media { id format title { userPreferred english romaji native } coverImage { large } } } } } }";
 
 async fn graphql(
     context: &Context,
@@ -150,18 +151,13 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 if title.is_empty() {
                     return Ok(json!([]));
                 }
-                let format = if ["lightNovel", "book"].contains(&text(&args["kind"])) {
-                    json!("NOVEL")
-                } else {
-                    Value::Null
-                };
-                let data = graphql(
-                    &context,
-                    SEARCH,
-                    json!({"search":title,"format":format}),
-                    false,
-                )
-                .await?;
+                let mut variables = json!({"search":title});
+                if ["lightNovel", "book"].contains(&text(&args["kind"])) {
+                    variables["format"] = json!("NOVEL");
+                }
+                // AniList treats an explicit null format as a filter. Omit the
+                // variable for general manga searches instead of sending null.
+                let data = graphql(&context, SEARCH, variables, false).await?;
                 Ok(Value::Array(
                     data["Page"]["media"]
                         .as_array()
@@ -204,7 +200,14 @@ pub fn run(context: Context, method: String, args: Value) -> Operation {
                 Ok(Value::Null)
             }
             "collections" => {
-                let data = graphql(&context, COLLECTIONS, json!({}), true).await?;
+                let viewer = graphql(&context, VIEWER, json!({}), true).await?;
+                let user_id = viewer["Viewer"]["id"]
+                    .as_u64()
+                    .filter(|value| *value > 0)
+                    .ok_or_else(|| {
+                        error("AniList returned no authenticated user", "invalidResponse")
+                    })?;
+                let data = graphql(&context, COLLECTIONS, json!({"userID":user_id}), true).await?;
                 let lists: Vec<&Value> = data["MediaListCollection"]["lists"]
                     .as_array()
                     .into_iter()

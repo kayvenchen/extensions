@@ -72,3 +72,13 @@ test("LNORI streams nested sections exactly once and strips unsafe markup",async
  assert.equal((content.text.match(/Original nested paragraph/g)||[]).length,1);
  assert.ok(content.text.includes('© &lt;value&gt;'));assert.ok(content.text.includes('<section id="nested">'));assert.ok(!content.text.includes('unsafe-'));
 });
+
+
+test("LNORI streaming descriptor does not fetch the full volume", async () => {
+ const loaded = await loadContentExtension(main, () => { throw new Error("No HTTP should be needed"); });
+ const stream = await loaded.extension.publicationStream({installmentId: bookID, workId: workID});
+ assert.equal(stream.id, bookID); assert.equal(stream.workId, workID);
+ assert.equal(stream.url, `https://lnori.com/book/${bookID}`);
+ assert.equal(stream.headers.Referer, "https://lnori.com/"); assert.equal(loaded.calls.length, 0);
+ await assert.rejects(loaded.extension.publicationStream({installmentId: "../secret", workId: workID}), {type:"invalidIdentifier"});
+});

@@ -1,6 +1,6 @@
 {
   "counts": {
-    "content": 5,
+    "content": 7,
     "tracker": 2
   },
   "entries": [
@@ -15,7 +15,17 @@
       "availability": "approvalRequired"
     },
     {
+      "id": "Komga",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
       "id": "LNori",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
+      "id": "MangaFire",
       "kind": "content",
       "availability": "approvalRequired"
     },

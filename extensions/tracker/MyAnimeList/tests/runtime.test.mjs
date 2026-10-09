@@ -63,3 +63,40 @@ test("MAL returns partial dates and unknown totals without claiming date-write s
   assert.equal(forms[0].get("score"), "0");
   assert.equal(forms[0].has("start_date"), false);
 });
+
+test("MAL collection pagination advances the offset and keeps every status group", async () => {
+  const offsets = [];
+  const runtime = await loadTrackerExtension(main, request => {
+    const url = new URL(request.url);
+    const offset = Number(url.searchParams.get("offset"));
+    offsets.push(offset);
+    return runtimeResponse({ text: JSON.stringify({ data: [{ node: { id: offset + 1, title: `Title ${offset + 1}` }, list_status: { status: offset ? "on_hold" : "plan_to_read" } }], paging: offset ? {} : { next: "https://api.myanimelist.net/v2/users/@me/mangalist?offset=100" } }) });
+  }, { secureState: { oauth_access_token: "token" } });
+  const first = await runtime.extension.collections();
+  assert.equal(first.items[0].title, "Plan to Read");
+  assert.deepEqual(plain(first.nextCursor.metadata), {});
+  const second = await runtime.extension.collections({ cursor: JSON.parse(first.nextCursor.value) });
+  assert.deepEqual(offsets, [0, 100]);
+  assert.equal(second.items[0].title, "On Hold");
+  assert.equal(second.items[0].items[0].id, "101");
+  assert.equal(second.nextCursor, null);
+});
+
+test("MAL round trips every status and limits updates to supplied fields", async () => {
+  const statuses = { planning: "plan_to_read", reading: "reading", completed: "completed", paused: "on_hold", dropped: "dropped", rereading: "reading" };
+  let remote;
+  const runtime = await loadTrackerExtension(main, request => {
+    if (request.method === "PUT") {
+      const form = new URLSearchParams(request.body);
+      remote = Object.fromEntries(form);
+      assert.deepEqual([...form.keys()].sort(), ["is_rereading", "status"]);
+      return runtimeResponse({ text: "{}" });
+    }
+    return runtimeResponse({ text: JSON.stringify({ my_list_status: { ...remote, is_rereading: remote.is_rereading === "true", updated_at: "2026-01-01T00:00:00Z" } }) });
+  }, { secureState: { oauth_access_token: "token" } });
+  for (const [status, native] of Object.entries(statuses)) {
+    await runtime.extension.update({ remoteWorkID: "2", status });
+    assert.equal(remote.status, native);
+    assert.equal((await runtime.extension.progress("2")).status, status);
+  }
+});
