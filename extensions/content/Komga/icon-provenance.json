@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "asset": "icon.svg",
+  "sourceURL": "https://komga.org/img/logo.svg",
+  "sha256": "2aae37567e14656bf4afffc31e0f54dbaf417dc9dddc2e83238d1b83f5a003c8",
+  "attribution": "Komga service logo; brand artwork is separate from the extension code license.",
+  "modifications": [],
+  "license": "Upstream brand artwork; no extension-code license asserted."
+}

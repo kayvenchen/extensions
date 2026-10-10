@@ -82,7 +82,7 @@ async function remainingPages(extension, method, input, metadata) {
   while (metadata != null) {
     assert.ok(pages.length < 20, "pagination must terminate");
     const result = await extension[method]({ ...input, metadata });
-    assert.ok(result.items.length <= 5);
+    assert.ok(result.items.length <= 25);
     pages.push(result);
     metadata = result.metadata;
   }
@@ -127,14 +127,14 @@ test("HitomiLA pages each site index in order for browsing, searching and langua
           } : {}) };
           const first = await loaded.extension[method](input);
           const pages = [first, ...await remainingPages(loaded.extension, method, input, first.metadata)];
-          assert.equal(first.items.length, 1);
-          assert.deepEqual(first.metadata, { offset: 1 });
+          assert.equal(first.items.length, 25);
+          assert.deepEqual(first.metadata, { offset: 25 });
           assert.deepEqual(pages.flatMap(page => Array.from(page.items, item => Number(item.workId))), ids,
             `${method}.${sort}.${language}.${Boolean(cache)}`);
           assert.equal(pages.at(-1).metadata, null);
           const indexes = loaded.calls.filter(call => call.url.endsWith(".nozomi"));
           assert.ok(indexes.every(call => new URL(call.url).pathname === path));
-          assert.equal(indexes.length, 3, "five-title batches share 25-ID ranges");
+          assert.equal(indexes.length, 3, "catalog pages use bounded 25-ID ranges");
         }
       }
     }
@@ -259,11 +259,11 @@ test("HitomiLA accepts decoded complete catalogs when the HTTP transport retains
       const input = { sectionId: "latest", sort };
       const first = await loaded.extension[method](input);
       const second = await loaded.extension[method]({ ...input, metadata: first.metadata });
-      assert.equal(first.items.length, sort === "random" ? 5 : 1, `${method}.${sort}`);
-      assert.equal(second.items.length, sort === "random" ? 5 : 4);
-      assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length, 1);
+      assert.equal(first.items.length, 25, `${method}.${sort}`);
+      assert.equal(second.items.length, 25);
+      assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length, sort === "random" ? 1 : 2);
       const ids = Array.from([...first.items, ...second.items], item => item.workId);
-      assert.equal(new Set(ids).size, sort === "random" ? 10 : 5);
+      assert.equal(new Set(ids).size, 50);
     }
   }
 });
@@ -289,7 +289,7 @@ test("HitomiLA decodes ranged Nozomi IDs, limits metadata concurrency, and cache
     if (/^\/galleries\/[0-9]+\.js$/.test(url.pathname)) {
       active++;
       maximum = Math.max(maximum, active);
-      await new Promise(resolveDelay => setTimeout(resolveDelay, 5));
+      await Promise.resolve();
       active--;
       const id = Number(url.pathname.match(/[0-9]+/)[0]);
       return runtimeResponse({ url: request.url, text: galleryAssignment(id) });
@@ -310,7 +310,7 @@ test("HitomiLA decodes ranged Nozomi IDs, limits metadata concurrency, and cache
   });
 
   const page = await loaded.extension.discover({ sectionId: "latest" });
-  assert.equal(page.items.length, 1);
+  assert.equal(page.items.length, 25);
   assert.equal(page.items[0].type, "work");
   assert.equal(page.items[0].workId, "1");
   assert.equal(page.items[0].imageUrl, `https://atn.gold-usergeneratedcontent.net/avifbigtn/1/00/${gallery(1).files[0].hash}.avif`);
@@ -318,10 +318,8 @@ test("HitomiLA decodes ranged Nozomi IDs, limits metadata concurrency, and cache
     const url = new URL(item.imageUrl);
     return url.protocol === "https:" && manifest.allowedHTTPSHosts.includes(url.hostname);
   }), "every emitted cover uses a declared HTTPS host");
-  assert.deepEqual(page.metadata, { offset: 1 });
-  const next = await loaded.extension.discover({ sectionId: "latest", metadata: page.metadata });
-  assert.deepEqual(Array.from(next.items, item => item.workId), ["2", "3", "4", "5"]);
-  assert.deepEqual(next.metadata, { offset: 5 });
+  assert.deepEqual(page.metadata, { offset: 25 });
+  assert.deepEqual(Array.from(page.items, item => item.workId), ids.map(String));
   assert.equal(maximum, 4);
   assert.equal(routingRequests, 0, "cover generation no longer depends on gg.js routing");
   const cover = await loaded.extension.imagePageContent({ url: page.items[0].imageUrl });
@@ -731,11 +729,13 @@ test("Hitomi cache-aware pagination shares bounded ranges and metadata across re
   const loaded = await loadContentExtension(mainPath, responder, {cache});
   const first = await loaded.extension.discover({sectionId:"latest"});
   const second = await loaded.extension.discover({sectionId:"latest", metadata:first.metadata});
-  assert.equal(first.items.length,1); assert.equal(second.items.length,4);
-  assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length,1);
-  const third = await loaded.extension.discover({sectionId:"latest", metadata:second.metadata});
-  assert.deepEqual(Array.from(third.items, item => Number(item.workId)), [6,7,8,9,10]);
-  assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length,1);
+  assert.equal(first.items.length,25); assert.equal(second.items.length,5);
+  assert.equal(second.metadata, null);
+  assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length,2);
+  const unaligned = await loaded.extension.discover({sectionId:"latest", metadata:{offset:5}});
+  assert.deepEqual(Array.from(unaligned.items, item => Number(item.workId)), Array.from({length:20}, (_, i) => i + 6));
+  assert.deepEqual(unaligned.metadata, {offset:25});
+  assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length,2);
   const legacy = await loaded.extension.discover({sectionId:"latest", metadata:{page:2}});
   assert.deepEqual(Array.from(legacy.items, item => Number(item.workId)), [26,27,28,29,30]);
   assert.equal(legacy.metadata, null);
@@ -751,7 +751,7 @@ test("Hitomi cache-aware pagination shares bounded ranges and metadata across re
   assert.equal(restarted.calls.filter(call => call.url.includes("/galleries/")).length,1);
 });
 
-test("Hitomi first-title windows retain offsets and terminate partial catalogs with or without caching", async () => {
+test("Hitomi 25-title pages retain offsets and terminate partial catalogs with or without caching", async () => {
   for (const count of [0, 1, 2, 4, 5, 6, 9, 10, 11, 24, 25, 26, 30]) {
     for (const cacheEnabled of [true, false]) {
       for (const method of ["discover", "search"]) {
@@ -759,15 +759,14 @@ test("Hitomi first-title windows retain offsets and terminate partial catalogs w
         const cache = metadataCacheFixture(cacheEnabled ? 1000 : 0);
         const loaded = await loadContentExtension(mainPath, sortResponder("/n/index-english.nozomi", ids), {cache});
         const first = await loaded.extension[method]({sectionId:"latest"});
-        assert.equal(first.items.length, Math.min(1, count));
-        assert.deepEqual(first.metadata, count > 1 ? {offset:1} : null);
-        assert.equal(loaded.calls.filter(call => call.url.includes("/galleries/")).length, Math.min(1, count));
+        assert.equal(first.items.length, Math.min(25, count));
+        assert.deepEqual(first.metadata, count > 25 ? {offset:25} : null);
+        assert.equal(loaded.calls.filter(call => call.url.includes("/galleries/")).length, Math.min(25, count));
         const pages = [first, ...await remainingPages(loaded.extension, method, {}, first.metadata)];
         assert.deepEqual(pages.flatMap(page => Array.from(page.items, item => Number(item.workId))), ids);
-        assert.deepEqual(pages.map(page => page.items.length), count === 0 ? [0] : [1, ...(count > 1 ? [Math.min(4, count - 1)] : []), ...Array.from({length:Math.ceil(Math.max(0, count - 5) / 5)}, (_, index) => Math.min(5, count - 5 - index * 5))]);
+        assert.deepEqual(pages.map(page => page.items.length), count === 0 ? [0] : Array.from({length:Math.ceil(count / 25)}, (_, index) => Math.min(25, count - index * 25)));
         const indexes = loaded.calls.filter(call => call.url.endsWith(".nozomi"));
         assert.equal(indexes.length, cacheEnabled ? Math.max(1, Math.ceil(count / 25)) : pages.length);
-        if (!cacheEnabled && count > 1) assert.equal(indexes[0].headers.Range, indexes[1].headers.Range);
         const end = await loaded.extension[method]({metadata:{offset:count}});
         assert.equal(end.items.length, 0);
         assert.equal(end.metadata, null);
@@ -776,7 +775,7 @@ test("Hitomi first-title windows retain offsets and terminate partial catalogs w
   }
 });
 
-test("Hitomi first-title continuation safely refetches expired or malformed ranges", async () => {
+test("Hitomi unaligned continuation safely refetches expired or malformed ranges", async () => {
   for (const invalid of [false, true]) {
     const cache = metadataCacheFixture();
     const loaded = await loadContentExtension(mainPath, sortResponder("/n/index-english.nozomi", catalogIDs), {cache});
@@ -785,12 +784,13 @@ test("Hitomi first-title continuation safely refetches expired or malformed rang
       const key = Array.from(cache.entries.keys()).find(key => key.startsWith("hitomi:nozomi-v2:"));
       cache.entries.get(key).value.bytes = "AA==";
     } else cache.advance(300);
-    const second = await loaded.extension.discover({metadata:first.metadata});
-    assert.deepEqual(Array.from(second.items, item => item.workId), ["2", "3", "4", "5"]);
+    const second = await loaded.extension.discover({metadata:{offset:1}});
+    assert.deepEqual(Array.from(second.items, item => item.workId), catalogIDs.slice(1,25).map(String));
+    assert.deepEqual(second.metadata, {offset:25});
     const indexes = loaded.calls.filter(call => call.url.endsWith(".nozomi"));
     assert.deepEqual(indexes.map(call => call.headers.Range), ["bytes=0-99", "bytes=0-99"]);
     const offset = await loaded.extension.discover({metadata:{offset:2}});
-    assert.deepEqual(Array.from(offset.items, item => item.workId), ["3", "4", "5"]);
+    assert.deepEqual(Array.from(offset.items, item => item.workId), catalogIDs.slice(2,25).map(String));
     await loaded.extension.invalidateCache();
     const fresh = await loaded.extension.discover({sectionId:"latest"});
     assert.deepEqual(fresh.items, first.items);
@@ -804,16 +804,15 @@ test("Hitomi duplicate IDs hydrate once and keep consumed offsets across batches
     const loaded = await loadContentExtension(mainPath,
       sortResponder("/n/index-english.nozomi", [1, 2, 2, 3, 4, 4, 5, 6, 7, 8, 9]), {cache});
     const first = await loaded.extension[method]({sectionId:"latest"});
-    const second = await loaded.extension[method]({metadata:first.metadata});
-    assert.deepEqual(Array.from(second.items, item => item.workId), ["2", "3", "4"]);
-    assert.deepEqual(second.metadata, {offset:5});
+    assert.deepEqual(Array.from(first.items, item => item.workId), ["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+    assert.equal(first.metadata, null);
+    const second = await loaded.extension[method]({metadata:{offset:1}});
+    assert.deepEqual(Array.from(second.items, item => item.workId), ["2", "3", "4", "5", "6", "7", "8", "9"]);
+    assert.equal(second.metadata, null);
     const requestCount = loaded.calls.length;
-    assert.deepEqual(await loaded.extension[method]({metadata:first.metadata}), second);
+    assert.deepEqual(await loaded.extension[method]({metadata:{offset:1}}), second);
     assert.equal(loaded.calls.length, requestCount);
-    const third = await loaded.extension[method]({metadata:second.metadata});
-    assert.deepEqual(Array.from(third.items, item => item.workId), ["5", "6", "7", "8"]);
-    assert.deepEqual(third.metadata, {offset:10});
-    const last = await loaded.extension[method]({metadata:third.metadata});
+    const last = await loaded.extension[method]({metadata:{offset:10}});
     assert.deepEqual(Array.from(last.items, item => item.workId), ["9"]);
     assert.equal(last.metadata, null);
     assert.equal(loaded.calls.filter(call => call.url.endsWith(".nozomi")).length, 1);
@@ -821,7 +820,7 @@ test("Hitomi duplicate IDs hydrate once and keep consumed offsets across batches
     cache.setReload(true);
     assert.deepEqual(await loaded.extension[method]({sectionId:"latest"}), first);
     cache.setReload(false);
-    assert.deepEqual(await loaded.extension[method]({metadata:first.metadata}), second);
+    assert.deepEqual(await loaded.extension[method]({metadata:{offset:1}}), second);
   }
 });
 
@@ -831,9 +830,9 @@ test("Hitomi filtered batches deduplicate without shifting continuation position
     sortResponder("/n/index-english.nozomi", ids, {"/n/tag/landscape-english.nozomi":ids}),
     {cache:metadataCacheFixture()});
   const first = await loaded.extension.search({query:"tag:landscape"});
-  assert.deepEqual(Array.from(first.items, item => item.workId), ["1", "2", "3", "4"]);
-  assert.deepEqual(first.metadata, {offset:5});
-  const second = await loaded.extension.search({query:"tag:landscape", metadata:first.metadata});
+  assert.deepEqual(Array.from(first.items, item => item.workId), ["1", "2", "3", "4", "5"]);
+  assert.equal(first.metadata, null);
+  const second = await loaded.extension.search({query:"tag:landscape", metadata:{offset:5}});
   assert.deepEqual(Array.from(second.items, item => item.workId), ["5"]);
   assert.equal(second.metadata, null);
 });
@@ -889,5 +888,9 @@ test("Hitomi large galleries keep catalog and detail payloads compact without tr
   assert.equal(images.pages.length,1070);
   value.files[1069].hash = "invalid";
   await loaded.extension.invalidateCache();
-  await assert.rejects(() => loaded.extension.discover({sectionId:"latest"}));
+  assert.equal((await loaded.extension.discover({sectionId:"latest"})).items.length, 1);
+  await assert.rejects(() => loaded.extension.details("8"));
+  await assert.rejects(() => loaded.extension.imagePages({workId:"8", installmentId:"gallery:8"}));
+  value.files[1069].hash = value.files[0].hash;
+  assert.equal((await loaded.extension.details("8")).workId, "8", "full-validation failures evict raw metadata so corrected retries succeed");
 });

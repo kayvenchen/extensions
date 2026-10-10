@@ -6,7 +6,7 @@
   "apiVersion": "2.0",
   "runtime": "wasm",
   "crate": "manko-mangakakalot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "language": "en",
   "languages": [
     "en"
@@ -37,7 +37,12 @@
     "*.mkklcdnv6temp.com",
     "*.mkklcdnv5temp.com",
     "*.mkklcdnv4temp.com",
-    "*.mkklcdnv3temp.com"
+    "*.mkklcdnv3temp.com",
+    "img-r2.2xstorage.com",
+    "img-r1.2xstorage.com",
+    "imgs-2.2xstorage.com",
+    "storage.waitst.com",
+    "storage4.waitst.com"
   ],
   "authenticationModes": [
     "none"

@@ -70,7 +70,7 @@
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
       "version": "2.0.6",
-      "icon": "icons/HitomiLA.svg",
+      "icon": "icons/HitomiLA.png",
       "languages": [
         "en",
         "ja",
@@ -262,8 +262,8 @@
       "id": "MangaBat",
       "name": "MangaBat",
       "description": "English manga discovery, search, and chapter reading from www.mangabats.com.",
-      "version": "0.1.0",
-      "icon": "icons/MangaBat.svg",
+      "version": "0.1.1",
+      "icon": "icons/MangaBat.webp",
       "languages": [
         "en"
       ],
@@ -306,15 +306,20 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaBat/0.1.0/main.wasm",
-        "sha256": "7211e33b75f8ca9d2d735fcd6fdbedf3086152130d6d59cf26c1ff63d0f35cb1",
-        "size": 2168140,
+        "moduleURL": "sources/MangaBat/0.1.1/main.wasm",
+        "sha256": "57c56b5682f9a5221173cfc56c99b1c0c28c8e588931bac94d8f604c9cccdcc7",
+        "size": 2239798,
         "allowedHTTPSHosts": [
           "www.mangabats.com",
           "*.mkklcdnv6temp.com",
           "*.mkklcdnv5temp.com",
           "*.mkklcdnv4temp.com",
-          "*.mkklcdnv3temp.com"
+          "*.mkklcdnv3temp.com",
+          "img-r2.2xstorage.com",
+          "img-r1.2xstorage.com",
+          "imgs-2.2xstorage.com",
+          "storage.waitst.com",
+          "storage4.waitst.com"
         ],
         "authenticationModes": [
           "none"
@@ -395,7 +400,7 @@
       "name": "MangaFox",
       "description": "Manga discovery, title search, and lazy image-page reading from fanfox.net.",
       "version": "0.1.0",
-      "icon": "icons/MangaFox.svg",
+      "icon": "icons/MangaFox.ico",
       "languages": [
         "en"
       ],
@@ -456,7 +461,7 @@
       "id": "MangaKakalot",
       "name": "MangaKakalot",
       "description": "English manga discovery, search, and chapter reading from www.mangakakalot.gg.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "icon": "icons/MangaKakalot.svg",
       "languages": [
         "en"
@@ -500,15 +505,20 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaKakalot/0.1.0/main.wasm",
-        "sha256": "b3c3f89fda29da5a8acff99416925b0f21cbaff909cf96cfdabb3fa790778deb",
-        "size": 2168137,
+        "moduleURL": "sources/MangaKakalot/0.1.1/main.wasm",
+        "sha256": "6f8eef83b737922d27c111c2eb4883b189f89316f9ec148c53463d3558439687",
+        "size": 2239795,
         "allowedHTTPSHosts": [
           "www.mangakakalot.gg",
           "*.mkklcdnv6temp.com",
           "*.mkklcdnv5temp.com",
           "*.mkklcdnv4temp.com",
-          "*.mkklcdnv3temp.com"
+          "*.mkklcdnv3temp.com",
+          "img-r2.2xstorage.com",
+          "img-r1.2xstorage.com",
+          "imgs-2.2xstorage.com",
+          "storage.waitst.com",
+          "storage4.waitst.com"
         ],
         "authenticationModes": [
           "none"
@@ -519,8 +529,8 @@
       "id": "MangaNato",
       "name": "MangaNato",
       "description": "English manga discovery, search, and chapter reading from www.manganato.gg.",
-      "version": "0.1.0",
-      "icon": "icons/MangaNato.svg",
+      "version": "0.1.1",
+      "icon": "icons/MangaNato.webp",
       "languages": [
         "en"
       ],
@@ -563,15 +573,20 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaNato/0.1.0/main.wasm",
-        "sha256": "57fb49956579c092de024121d99e5899eb9480b716016cb2bcb0c7d26c6955bb",
-        "size": 2168137,
+        "moduleURL": "sources/MangaNato/0.1.1/main.wasm",
+        "sha256": "0618edf920135108c7da818465679bc555bb35871bac28eb9069310ab5f81853",
+        "size": 2239795,
         "allowedHTTPSHosts": [
           "www.manganato.gg",
           "*.mkklcdnv6temp.com",
           "*.mkklcdnv5temp.com",
           "*.mkklcdnv4temp.com",
-          "*.mkklcdnv3temp.com"
+          "*.mkklcdnv3temp.com",
+          "img-r2.2xstorage.com",
+          "img-r1.2xstorage.com",
+          "imgs-2.2xstorage.com",
+          "storage.waitst.com",
+          "storage4.waitst.com"
         ],
         "authenticationModes": [
           "none"
@@ -706,7 +721,7 @@
       "name": "Omega Scans",
       "description": "Comic discovery, search, and free chapter reading from omegascans.org.",
       "version": "0.1.1",
-      "icon": "icons/OmegaScans.svg",
+      "icon": "icons/OmegaScans.png",
       "languages": [
         "en"
       ],

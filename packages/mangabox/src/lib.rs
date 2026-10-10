@@ -31,7 +31,7 @@ fn media(value: &str, base: &str) -> Result<String> {
         .join(value)
         .map_err(|_| site::invalid())?;
     let host = url.host_str().ok_or_else(site::invalid)?;
-    if !SITE_HOSTS.contains(&host) && !MEDIA_SUFFIXES.iter().any(|suffix| host.ends_with(suffix)) {
+    if !["img-r1.2xstorage.com", "img-r2.2xstorage.com", "imgs-2.2xstorage.com", "storage.waitst.com", "storage4.waitst.com"].contains(&host) && !SITE_HOSTS.contains(&host) && !MEDIA_SUFFIXES.iter().any(|suffix| host.ends_with(suffix)) {
         return Err(error("Unexpected MangaBox image host", "hostNotAllowed"));
     }
     site::link(url.as_str(), base, &[host])
@@ -168,31 +168,41 @@ fn catalog_url(provider: Provider, args: &Value, discovery: bool, page: u64) -> 
         sort + status
     ))
 }
-fn catalog(body: &str, provider: Provider, current: u64) -> Result<Value> {
-    let html = Html::parse_document(body);
-    let containers = site::selector(".panel_story_list, .truyen-list, .list-comic, .panel-content-genres, .panel-search-story, .list-truyen-item-wrap, .list-comic-item-wrap");
-    let has_container = html.select(&containers).next().is_some();
+async fn catalog(context: &Context, body: &str, provider: Provider, current: u64) -> Result<Value> {
+    // Scan only cards and pagination anchors. Building a DOM for navigation,
+    // long summaries and advertisements exhausts the interpreted runtime budget.
+    let classes = ["story_item", "list-truyen-item-wrap", "list-comic-item-wrap", "content-genres-item", "search-story-item"];
+    let has_container = site::blocks(body, "div").any(|block| site::attribute(block.header, "class").is_some_and(|value|
+        value.split_whitespace().any(|name| classes.contains(&name) || ["panel_story_list", "truyen-list", "list-comic", "panel-content-genres", "panel-search-story"].contains(&name))));
+    context.now().await?;
     let mut items = Vec::new();
-    for row in html.select(&site::selector(".story_item, .list-truyen-item-wrap, .list-comic-item-wrap, .content-genres-item, .search-story-item")) {
-        let Some(anchor) = row.select(&site::selector(".story_name a, h3 a, a[title], a[href]")).next() else { continue };
-        let id = path(anchor.value().attr("href").ok_or_else(site::invalid)?, provider)?;
-        let title = anchor.value().attr("title").map(str::to_owned).filter(|t| !t.trim().is_empty()).unwrap_or_else(|| site::plain(anchor));
+    for row in site::blocks(body, "div").filter(|block| site::attribute(block.header, "class").is_some_and(|value|
+        value.split_whitespace().any(|name| classes.contains(&name)))) {
+        context.now().await?;
+        let Some(anchor) = site::blocks(row.body, "a").next() else { continue };
+        let id = path(&site::attribute(anchor.header, "href").ok_or_else(site::invalid)?, provider)?;
+        let title = site::attribute(anchor.header, "title").filter(|t| !t.trim().is_empty()).unwrap_or_else(|| {
+            let heading = site::blocks(row.body, "h3").next().or_else(|| site::blocks(row.body, "h2").next());
+            let fragment = Html::parse_fragment(heading.map(|h| h.body).unwrap_or(anchor.body));
+            fragment.root_element().text().collect::<String>().trim().to_owned()
+        });
         if title.trim().is_empty() { return Err(site::invalid()); }
-        let cover = row.select(&site::selector("img")).next().and_then(|i| i.value().attr("data-src").or(i.value().attr("src"))).unwrap_or("");
-        items.push(site::card(&id, &title, &if cover.is_empty() { String::new() } else { media(cover, provider.base)? }, "manga"));
+        let cover = site::tag_header(row.body, "img").and_then(|header| site::attribute(header, "data-src").or_else(|| site::attribute(header, "src"))).unwrap_or_else(|| {
+            let fragment = Html::parse_fragment(row.body);
+            site::attr(&fragment, "img", "data-src")
+        });
+        let cover = if cover.is_empty() { site::attr(&Html::parse_fragment(row.body), "img", "src") } else { cover };
+        items.push(site::card(&id, &title, &if cover.is_empty() { String::new() } else { media(&cover, provider.base)? }, "manga"));
     }
     if !has_container && items.is_empty() {
         return Err(site::invalid());
     }
-    let next = html
-        .select(&site::selector(
-            ".panel_page_number a[href], .group_page a[href], a.page_last, a.page_next",
-        ))
-        .any(|anchor| {
-            let Some(href) = anchor.value().attr("href") else {
+    context.now().await?;
+    let next = site::blocks(body, "a").any(|anchor| {
+            let Some(href) = site::attribute(anchor.header, "href") else {
                 return false;
             };
-            let Ok(url) = url::Url::parse(provider.base).unwrap().join(href) else {
+            let Ok(url) = url::Url::parse(provider.base).unwrap().join(&href) else {
                 return false;
             };
             url.host_str() == url::Url::parse(provider.base).unwrap().host_str()
@@ -216,45 +226,27 @@ async fn document(context: &Context, provider: Provider, url: &str) -> Result<St
     .await
 }
 fn details(body: &str, provider: Provider, id: &str) -> Result<Value> {
-    let html = Html::parse_document(
-        body.split("id=\"chapter-list-container\"")
-            .next()
-            .unwrap_or(body),
-    );
-    let title = site::field(&html, ".manga-info-top h1, .panel-story-info h1");
-    if title.is_empty() {
-        return Err(site::invalid());
-    }
-    let image = site::attr(&html, ".manga-info-pic img, .info-image img", "src");
+    let region = body.split("id=\"chapter-list-container\"").next().unwrap_or(body);
+    let plain = |value: &str| Html::parse_fragment(value).root_element().text().collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ");
+    let title = site::blocks(region, "h1").next().map(|block| plain(block.body)).unwrap_or_default();
+    if title.is_empty() { return Err(site::invalid()); }
+    let cover = site::blocks(region, "div").find(|block| site::attribute(block.header, "class").is_some_and(|value| value.split_whitespace().any(|name| name == "manga-info-pic" || name == "info-image")))
+        .or_else(|| site::blocks(region, "span").find(|block| site::attribute(block.header, "class").is_some_and(|value| value.split_whitespace().any(|name| name == "info-image"))));
+    let image = cover.and_then(|block| site::tag_header(block.body, "img")).and_then(|header| site::attribute(header, "src")).unwrap_or_default();
     let mut author = String::new();
     let mut status = "unknown";
     let mut tags = Vec::new();
-    for row in html.select(&site::selector(
-        ".manga-info-top li, .variations-tableInfo tr",
-    )) {
-        let label = site::plain(row).to_lowercase();
-        if label.starts_with("author") {
-            author = row
-                .select(&site::selector("a"))
-                .map(site::plain)
-                .collect::<Vec<_>>()
-                .join(", ");
+    for row in site::blocks(region, "li").chain(site::blocks(region, "tr")) {
+        let label = plain(row.body);
+        let lower = label.to_lowercase();
+        if lower.starts_with("author") {
+            author = site::blocks(row.body, "a").map(|a| plain(a.body)).collect::<Vec<_>>().join(", ");
+            if author.is_empty() { author = label.split_once(':').map(|(_, value)| value.trim().to_owned()).unwrap_or_default(); }
         }
-        if label.starts_with("genre") {
-            tags = row.select(&site::selector("a")).map(site::plain).collect();
-        }
-        if label.starts_with("status") {
-            status = if label.contains("ongoing") {
-                "ongoing"
-            } else if label.contains("completed") {
-                "completed"
-            } else if label.contains("hiatus") {
-                "hiatus"
-            } else {
-                "unknown"
-            };
-        }
+        if lower.starts_with("genre") { tags = site::blocks(row.body, "a").map(|a| plain(a.body)).collect(); }
+        if lower.starts_with("status") { status = if lower.contains("ongoing") { "ongoing" } else if lower.contains("completed") { "completed" } else if lower.contains("hiatus") { "hiatus" } else { "unknown" }; }
     }
+    let summary = site::blocks(body, "div").find(|block| site::attribute(block.header, "id").is_some_and(|id| id == "contentBox" || id == "panel-story-info-description")).map(|block| plain(&plain(block.body))).unwrap_or_default();
     let mut value = site::details(
         site::card(
             id,
@@ -266,7 +258,7 @@ fn details(body: &str, provider: Provider, id: &str) -> Result<Value> {
             },
             "manga",
         ),
-        &site::field(&html, "#contentBox, #panel-story-info-description"),
+        &summary,
         &author,
         status,
         if tags
@@ -281,31 +273,22 @@ fn details(body: &str, provider: Provider, id: &str) -> Result<Value> {
         },
         &work_url(id, provider)?,
     );
-    value["workInfo"]["tags"] = json!(tags);
+    value["workInfo"]["searchFacets"] = json!(tags.iter().map(|tag| json!({"fieldID":"genre","value":encode(tag, '-'),"title":tag,"groupTitle":"Genres","presentation":"tag"})).collect::<Vec<_>>());
     Ok(value)
 }
 async fn chapters(context: &Context, provider: Provider, id: &str, body: &str) -> Result<Value> {
-    let html = Html::parse_document(body);
     let mut items = Vec::new();
     let mut seen = HashSet::new();
-    if let Some(index) = html
-        .select(&site::selector("#chapter-list-container"))
-        .next()
+    if let Some(index) = site::blocks(body, "div").find(|block| site::attribute(block.header, "id").as_deref() == Some("chapter-list-container"))
     {
-        let slug = index
-            .value()
-            .attr("data-comic-slug")
+        let slug = site::attribute(index.header, "data-comic-slug")
             .ok_or_else(site::invalid)?
             .to_owned();
         site::slug(&slug)?;
-        let api = index
-            .value()
-            .attr("data-api-url")
+        let api = site::attribute(index.header, "data-api-url")
             .ok_or_else(site::invalid)?
             .replace("__SLUG__", &slug);
-        let template = index
-            .value()
-            .attr("data-chapter-url-template")
+        let template = site::attribute(index.header, "data-chapter-url-template")
             .ok_or_else(site::invalid)?
             .replace("__MANGA__", &slug);
         let host = url::Url::parse(provider.base).unwrap();
@@ -328,8 +311,10 @@ async fn chapters(context: &Context, provider: Provider, id: &str, body: &str) -
             let more = data["data"]["pagination"]["has_more"]
                 .as_bool()
                 .ok_or_else(site::invalid)?;
+            context.now().await?;
             let before = items.len();
-            for row in rows {
+            for (position, row) in rows.iter().enumerate() {
+                if position % 25 == 0 { context.now().await?; }
                 let slug = site::slug(text(&row["chapter_slug"]))?;
                 let chapter = path(&template.replace("__CHAPTER__", slug), provider)?;
                 if seen.insert(chapter.clone()) {
@@ -353,6 +338,7 @@ async fn chapters(context: &Context, provider: Provider, id: &str, body: &str) -
             context.now().await?;
         }
     } else {
+        let html = Html::parse_document(body);
         let re = regex::Regex::new(r"(?i)chapter\s*([0-9]+(?:\.[0-9]+)?)").unwrap();
         for anchor in html.select(&site::selector(".row-content-chapter a, .chapter-list a")) {
             let chapter = path(
@@ -436,7 +422,7 @@ pub fn run(provider: Provider, context: Context, method: String, args: Value) ->
             "search" | "discover" => {
                 let page = page(&args, 100_000)?;
                 let url = catalog_url(provider, &args, method == "discover", page)?;
-                catalog(&document(&context, provider, &url).await?, provider, page)
+                catalog(&context, &document(&context, provider, &url).await?, provider, page).await
             }
             "details" => {
                 let id = text(&args);

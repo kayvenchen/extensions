@@ -46,7 +46,7 @@
       "name": "manko Extension Contributors"
     }
   ],
-  "iconFile": "icon.svg",
+  "iconFile": "icon.ico",
   "license": "Apache-2.0",
   "compatibility": {
     "adapter": "native-rust-wasm",

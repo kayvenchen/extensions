@@ -11,6 +11,25 @@ const legacy=info+'<div class="row-content-chapter"><a href="/manga/sample/chapt
 for(const [name,host] of providers){
  const main=resolve(import.meta.dirname,`../../${name}/main.wasm`);
  const response=(r,text)=>runtimeResponse({url:r.url,text});
+ test(`${name}: current cards and text-only author metadata ignore unrelated page markup`,async()=>{
+  const card='<div class="list-comic-item-wrap"><a href="/manga/sample" title="Sample Story"><img data-src="https://img-r2.2xstorage.com/thumb/sample.webp"></a><h3><a href="/manga/sample">Sample Story</a></h3><div>123 views</div></div>';
+  const current='<div class="manga-info-top"><div class="manga-info-pic"><img src="https://img-r2.2xstorage.com/thumb/sample.webp"></div><ul class="manga-info-text"><li><h1>Sample Story</h1></li><li>Author(s) : Author One</li><li>Status : Ongoing</li><li>Genres : <a>Action</a>, <a>Adventure</a></li></ul></div><div id="contentBox">A &amp;quot;synthetic&amp;quot; synopsis. &lt;br&gt; Next paragraph.</div>';
+  for(const cdn of ['img-r1.2xstorage.com','imgs-2.2xstorage.com','storage.waitst.com','storage4.waitst.com']) {
+   const check=await loadContentExtension(main,r=>response(r,card.replaceAll('img-r2.2xstorage.com',cdn)));
+   assert.equal((await check.extension.discover({sectionId:'hot'})).items[0].imageUrl,`https://${cdn}/thumb/sample.webp`);
+  }
+  const unrelated='<script>'+('/* unrelated */'.repeat(20000))+'</script>';
+  const loaded=await loadContentExtension(main,r=>response(r,r.url.includes('/genre/')?unrelated+card+unrelated:unrelated+current+unrelated));
+  const catalog=await loaded.extension.discover({sectionId:'hot'});assert.equal(catalog.items.length,1);assert.equal(catalog.items[0].imageUrl,'https://img-r2.2xstorage.com/thumb/sample.webp');
+  const details=await loaded.extension.details('manga/sample');assert.equal(details.workInfo.author,'Author One');assert.equal(details.workInfo.synopsis,'A "synthetic" synopsis. Next paragraph.');assert.deepEqual(details.workInfo.searchFacets.map(f=>f.title),['Action','Adventure']);assert.ok(details.workInfo.searchFacets.every(f=>f.fieldID==='genre'&&f.presentation==='tag'));
+  await assert.rejects(loaded.extension.imagePageContent({url:'https://img-r2.2xstorage.com.evil.test/sample.webp'}));
+ });
+ test(`${name}: search thumbnail anchors use the visible heading for titles`,async()=>{
+  const body='<div class="story_item"><a href="/manga/sample"><img src="https://img-r2.2xstorage.com/thumb/sample.webp"></a><div class="story_item_right"><h3 class="story_name"><a href="/manga/sample">Sample Story</a></h3></div></div>';
+  const loaded=await loadContentExtension(main,r=>response(r,body));
+  const found=await loaded.extension.search({query:'sample'});
+  assert.equal(found.items[0].title,'Sample Story');assert.equal(found.items[0].workId,'manga/sample');assert.equal(found.items[0].imageUrl,'https://img-r2.2xstorage.com/thumb/sample.webp');
+ });
  test(`${name}: catalog, query encoding, cursor and supported filters`,async()=>{
   const loaded=await loadContentExtension(main,r=>response(r,new URL(r.url).searchParams.get('page')==='2'?'<div class="panel_story_list"></div>':listing));
   const first=await loaded.extension.discover({sectionId:'hot'});

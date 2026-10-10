@@ -11,9 +11,10 @@ use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::LazyLock;
+use std::task::Poll;
 const STATIC: &str = "https://ltn.gold-usergeneratedcontent.net";
 const INDEX_CHUNK_BYTES: u64 = 16 * 1024;
-const CATALOG_PAGE_SIZE: u64 = 5;
+const CATALOG_PAGE_SIZE: u64 = 25;
 const CATALOG_INDEX_SIZE: u64 = 25;
 const MAX_CATALOG_OFFSET: u64 = 16 * 1024 * 1024 / 4;
 static PAGE_HOST: LazyLock<Regex> = LazyLock::new(|| {
@@ -175,7 +176,7 @@ fn gallery_json(source: &str) -> Result<&str> {
     Ok(source[prefix.end()..].trim().trim_end_matches(';'))
 }
 
-// Validate every file hash, retaining only the first file for catalog covers.
+// Catalog cards need only the first file; details and readers validate all files.
 struct GalleryCard(Value);
 impl<'de> Deserialize<'de> for GalleryCard {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
@@ -226,15 +227,14 @@ impl<'de> Deserialize<'de> for CoverFiles {
                 self,
                 mut seq: A,
             ) -> std::result::Result<Self::Value, A::Error> {
-                let mut first = None;
-                while let Some(file) = seq.next_element::<FileHash>()? {
+                let first = seq.next_element::<FileHash>()?;
+                if let Some(file) = &first {
                     if !valid_hash(&file.hash) {
                         return Err(A::Error::custom("Invalid image hash"));
                     }
-                    if first.is_none() {
-                        first = Some(json!({"hash":file.hash}));
-                    }
                 }
+                while seq.next_element::<serde::de::IgnoredAny>()?.is_some() {}
+                let first = first.map(|file| json!({"hash":file.hash}));
                 Ok(CoverFiles(json!(first.into_iter().collect::<Vec<_>>())))
             }
         }
@@ -261,9 +261,22 @@ fn validate_gallery(value: &Value, expected: &str) -> Result<()> {
 }
 async fn gallery(context: &Context, value: &Value) -> Result<Value> {
     let id = id(value)?;
-    let value = gallery_assignment(&gallery_text(context, &id).await?)?;
-    validate_gallery(&value, &id)?;
-    Ok(value)
+    let source = gallery_text(context, &id).await?;
+    let result = gallery_assignment(&source).and_then(|value| {
+        validate_gallery(&value, &id)?;
+        Ok(value)
+    });
+    if result.is_err() {
+        // Catalog validation covers only the first file. Evict a raw gallery
+        // rejected by full validation so corrected detail/reader retries reload it.
+        context
+            .call(
+                "cache",
+                json!({"operation":"remove","key":format!("hitomi:gallery-v2:{id}")}),
+            )
+            .await?;
+    }
+    result
 }
 async fn gallery_data(context: &Context, id: &str) -> Result<(Value, Value)> {
     // Keep the validated projection instead of parsing the same gallery twice.
@@ -771,17 +784,46 @@ async fn nozomi_range(
     Ok(range)
 }
 async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
-    let mut result = vec![];
     let mut seen = HashSet::new();
     let ids: Vec<_> = ids.iter().copied().filter(|id| seen.insert(*id)).collect();
-    for chunk in ids.chunks(4) {
-        let cards = futures::future::join_all(chunk.iter().map(|id| async move {
-            let gallery = gallery_card(context, &id.to_string()).await?;
-            work(&gallery)
-        }))
-        .await;
-        result.extend(cards.into_iter().collect::<Result<Vec<_>>>()?);
-    }
+    let mut result = vec![Value::Null; ids.len()];
+    let mut remaining = ids.into_iter().enumerate();
+    let mut pending = Vec::new();
+    // The guest is polled on host-service resumes, without per-future wakeups.
+    // Poll all four slots each time and refill immediately on completion.
+    futures::future::poll_fn(|cx| {
+        let mut index = 0;
+        loop {
+            while pending.len() < 4 {
+                let Some((position, id)) = remaining.next() else {
+                    break;
+                };
+                pending.push((
+                    position,
+                    Box::pin(async move {
+                        let gallery = gallery_card(context, &id.to_string()).await?;
+                        work(&gallery)
+                    }),
+                ));
+            }
+            if index >= pending.len() {
+                return if pending.is_empty() {
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                };
+            }
+            match std::future::Future::poll(pending[index].1.as_mut(), cx) {
+                Poll::Ready(Ok(card)) => {
+                    let (position, _) = pending.swap_remove(index);
+                    result[position] = card;
+                }
+                Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
+                Poll::Pending => index += 1,
+            }
+        }
+    })
+    .await?;
     Ok(result)
 }
 fn validate_range(response: &Value, start: u64, end: u64, length: u64) -> Result<u64> {
@@ -1004,7 +1046,7 @@ fn catalog_offset(args: &Value) -> Result<u64> {
             .filter(|value| *value <= MAX_CATALOG_OFFSET)
             .ok_or_else(|| error("Invalid catalog offset", "invalidCursor"));
     }
-    // Old continuations counted pages of 25, not the new five-title batches.
+    // Legacy page cursors and current offset cursors both count consumed IDs.
     Ok((page(&json!({"metadata":cursor}), 100_000)? - 1) * 25)
 }
 async fn search(context: &Context, args: &Value) -> Result<Value> {
@@ -1074,15 +1116,11 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         let ids = nozomi(&bytes)?;
         let relative_offset = (offset - window_offset) as usize;
         let mut seen: HashSet<_> = ids.iter().take(relative_offset).copied().collect();
-        // The first title is selectable while the rest of its cached window hydrates.
+        // Complete this cached 25-ID window, including legacy unaligned offsets.
         let ids: Vec<_> = ids
             .into_iter()
             .skip(relative_offset)
-            .take(if offset == 0 {
-                1
-            } else {
-                (CATALOG_PAGE_SIZE - offset % CATALOG_PAGE_SIZE) as usize
-            })
+            .take((CATALOG_PAGE_SIZE - offset % CATALOG_PAGE_SIZE) as usize)
             .collect();
         let next_offset = offset + ids.len() as u64;
         let has_next = !ids.is_empty() && next_offset * 4 < total;
@@ -1417,15 +1455,24 @@ mod tests {
         assert!(decode_node(&[0, 0, 0, 17]).is_err());
     }
     #[test]
-    fn catalog_projection_validates_discarded_files() {
+    fn catalog_projection_retains_only_the_cover_and_details_validate_all_files() {
         let mut gallery = json!({"id":"1","title":"Fixture","files":(0..1070).map(|_| json!({"hash":"a".repeat(64),"name":"1.png"})).collect::<Vec<_>>()});
         let source = format!("var galleryinfo={gallery};");
         let compact = gallery_card_assignment(&source).unwrap();
         assert_eq!(compact["files"].as_array().unwrap().len(), 1);
         assert_eq!(work(&compact).unwrap(), work(&gallery).unwrap());
         gallery["files"][1069]["hash"] = json!("invalid");
+        let source = format!("var galleryinfo={gallery};");
+        assert!(gallery_card_assignment(&source).is_ok());
+        assert!(validate_gallery(&gallery_assignment(&source).unwrap(), "1").is_err());
+        gallery["files"][0]["hash"] = json!("invalid");
         assert!(gallery_card_assignment(&format!("var galleryinfo={gallery};")).is_err());
         assert!(gallery_card_assignment("var galleryinfo={\"files\":null};").is_err());
+        assert!(
+            gallery_card_assignment("var galleryinfo={\"files\":[{\"hash\":\"invalid\"}]};")
+                .is_err()
+        );
+        assert!(gallery_card_assignment(&source.replace("invalid", "bad\"json")).is_err());
     }
     #[test]
     fn catalog_cursors_preserve_legacy_offsets() {

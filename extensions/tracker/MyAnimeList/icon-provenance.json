@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "asset": "icon.svg",
+  "sourceURL": "https://cdn.myanimelist.net/images/favicon.svg",
+  "sha256": "d69813bdf5f5fd1c37d6bc03909437efe3d57b5ab3fe1d6e3597d190f6ca4495",
+  "attribution": "MyAnimeList service logo; brand artwork is separate from the extension code license.",
+  "modifications": [],
+  "license": "Upstream brand artwork; no extension-code license asserted."
+}
