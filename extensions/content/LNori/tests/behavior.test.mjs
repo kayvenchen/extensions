@@ -82,3 +82,11 @@ test("LNORI streaming descriptor does not fetch the full volume", async () => {
  assert.equal(stream.headers.Referer, "https://lnori.com/"); assert.equal(loaded.calls.length, 0);
  await assert.rejects(loaded.extension.publicationStream({installmentId: "../secret", workId: workID}), {type:"invalidIdentifier"});
 });
+
+
+test("LNORI prefers displayed book artwork over promotional schema cards",async()=>{
+ const html=series.replace('https://cdn.lnori.com/cover/1.webp','https://cdn.lnori.com/volume/1.jpg')+'<img src="https://cdn.lnori.com/cover/1.webp" alt="Sample Cover">';
+ const loaded=await loadContentExtension(main,r=>runtimeResponse({url:r.url,text:html}),{cache:metadataCacheFixture()});
+ const detail=await loaded.extension.details(workID);
+ assert.equal(detail.workInfo.thumbnailUrl,'https://cdn.lnori.com/cover/1.webp');
+});

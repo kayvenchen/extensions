@@ -2,7 +2,7 @@
 
 Native WebAssembly Extension API 2.0 modules, a shared Rust SDK, the manko-ext publishing CLI, and the documentation website.
 
-The local catalog contains AniList, MyAnimeList, HitomiLA, NHentai, LNORI, Omega Scans, MangaFox, MangaFire, and the Komga connector pilot. New providers are prepared locally; publication remains a separate release step. Existing source IDs and the repository URL are unchanged:
+The local catalog contains AniList, MyAnimeList, HitomiLA, NHentai, LNORI, Omega Scans, MangaFox, MangaFire, MangaKakalot, MangaNato, MangaBat, and the Komga connector pilot. New providers are prepared locally; publication remains a separate release step. Existing source IDs and the repository URL are unchanged:
 https://k800k.github.io/extensions/dist/v1/stable/
 
 ## Build And Validate

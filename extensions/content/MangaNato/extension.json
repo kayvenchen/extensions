@@ -1,0 +1,64 @@
+{
+  "id": "MangaNato",
+  "name": "MangaNato",
+  "description": "English manga discovery, search, and chapter reading from www.manganato.gg.",
+  "kind": "content",
+  "apiVersion": "2.0",
+  "runtime": "wasm",
+  "crate": "manko-manganato",
+  "version": "0.1.0",
+  "language": "en",
+  "languages": [
+    "en"
+  ],
+  "contentRating": "ADULT",
+  "availability": "approvalRequired",
+  "capabilities": [
+    "browse",
+    "discover",
+    "search",
+    "filters",
+    "details",
+    "installments",
+    "acquisition",
+    "cookies",
+    "challengeHandoff",
+    "imageSequence"
+  ],
+  "permissions": [
+    "network",
+    "cookies",
+    "rateLimiting",
+    "redactedLogging",
+    "challengeHandoff"
+  ],
+  "allowedHTTPSHosts": [
+    "www.manganato.gg",
+    "*.mkklcdnv6temp.com",
+    "*.mkklcdnv5temp.com",
+    "*.mkklcdnv4temp.com",
+    "*.mkklcdnv3temp.com"
+  ],
+  "authenticationModes": [
+    "none"
+  ],
+  "developers": [
+    {
+      "name": "manko Extension Contributors"
+    }
+  ],
+  "iconFile": "icon.svg",
+  "license": "Apache-2.0",
+  "homepage": "https://www.manganato.gg",
+  "compatibility": {
+    "adapter": "native-rust-wasm",
+    "status": "supported",
+    "scope": "core",
+    "note": null,
+    "limitations": [
+      "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
+    ],
+    "runtime": "native-wasm",
+    "apiVersion": "2.0"
+  }
+}

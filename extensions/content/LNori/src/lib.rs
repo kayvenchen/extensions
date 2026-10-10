@@ -129,7 +129,29 @@ fn parse_series(html: &str, id: &str) -> Result<Value> {
     if title.is_empty() {
         return Err(site::invalid());
     }
-    let image = site::link(text(&schema["image"]), BASE, HOSTS)?;
+    // Current series metadata names the promotional volume card. The visible
+    // /cover/ image is the actual book artwork used by catalog cards.
+    // Keep the series path streaming: building a DOM for a large series page
+    // is prohibitively expensive in the interpreted iOS WASM runtime.
+    let mut remaining = html;
+    let mut visible_cover = String::new();
+    while let Some(header) = site::tag_header(remaining, "img") {
+        let source = site::attribute(header, "src").unwrap_or_default();
+        if source.contains("/cover/") {
+            visible_cover = source;
+            break;
+        }
+        remaining = remaining.split_once(header).ok_or_else(site::invalid)?.1;
+    }
+    let image = site::link(
+        if visible_cover.is_empty() {
+            text(&schema["image"])
+        } else {
+            &visible_cover
+        },
+        BASE,
+        HOSTS,
+    )?;
     let mut value = site::details(
         site::card(id, title, &image, "lightNovel"),
         text(&schema["description"]),
@@ -367,8 +389,10 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                 let work = identity(text(&args["workId"]))?;
                 // Native incremental parsing validates the book's structured
                 // identity before delivering any text. Do not fetch the volume here.
-                Ok(json!({"id":book,"workId":work,"url":format!("{BASE}book/{book}"),
-                    "headers":{"Referer":BASE,"User-Agent":AGENT,"Accept":"text/html"}}))
+                Ok(
+                    json!({"id":book,"workId":work,"url":format!("{BASE}book/{book}"),
+                    "headers":{"Referer":BASE,"User-Agent":AGENT,"Accept":"text/html"}}),
+                )
             }
             "publicationContent" => {
                 let book = identity(text(&args["installmentId"]))?;

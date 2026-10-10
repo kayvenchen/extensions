@@ -482,6 +482,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "manko-mangabat"
+version = "0.1.0"
+dependencies = [
+ "manko-mangabox",
+ "manko-sdk",
+ "serde_json",
+]
+
+[[package]]
+name = "manko-mangabox"
+version = "0.1.0"
+dependencies = [
+ "manko-sdk",
+ "manko-site-support",
+ "regex",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "manko-mangafire"
 version = "0.1.0"
 dependencies = [
@@ -501,6 +521,24 @@ dependencies = [
  "regex",
  "serde_json",
  "url",
+]
+
+[[package]]
+name = "manko-mangakakalot"
+version = "0.1.0"
+dependencies = [
+ "manko-mangabox",
+ "manko-sdk",
+ "serde_json",
+]
+
+[[package]]
+name = "manko-manganato"
+version = "0.1.0"
+dependencies = [
+ "manko-mangabox",
+ "manko-sdk",
+ "serde_json",
 ]
 
 [[package]]

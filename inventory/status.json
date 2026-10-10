@@ -1,6 +1,6 @@
 {
   "counts": {
-    "content": 7,
+    "content": 10,
     "tracker": 2
   },
   "entries": [
@@ -25,12 +25,27 @@
       "availability": "approvalRequired"
     },
     {
+      "id": "MangaBat",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
       "id": "MangaFire",
       "kind": "content",
       "availability": "approvalRequired"
     },
     {
       "id": "MangaFox",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
+      "id": "MangaKakalot",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
+      "id": "MangaNato",
       "kind": "content",
       "availability": "approvalRequired"
     },

@@ -18,11 +18,23 @@
     },
     {
       "kind": "content",
+      "id": "MangaBat"
+    },
+    {
+      "kind": "content",
       "id": "MangaFire"
     },
     {
       "kind": "content",
       "id": "MangaFox"
+    },
+    {
+      "kind": "content",
+      "id": "MangaKakalot"
+    },
+    {
+      "kind": "content",
+      "id": "MangaNato"
     },
     {
       "kind": "tracker",

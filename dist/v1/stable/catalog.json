@@ -238,7 +238,7 @@
       "id": "LNori",
       "name": "LNORI",
       "description": "English light-novel discovery, series details, and XHTML volume reading from lnori.com.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "icon": "icons/LNori.svg",
       "languages": [
         "en"
@@ -281,9 +281,9 @@
       "extension": {
         "apiVersion": "2.0",
         "runtime": "wasm",
-        "moduleURL": "sources/LNori/0.1.1/main.wasm",
-        "sha256": "bc54251b54fa9d52c85e70fb9a20eee178935b05b0350f325874ba3b10a7bacf",
-        "size": 1249158,
+        "moduleURL": "sources/LNori/0.1.2/main.wasm",
+        "sha256": "5c173dfc0e3802eacecb7f61ce8b97cda782bae75be32300d0699d10026a6906",
+        "size": 1249962,
         "allowedHTTPSHosts": [
           "lnori.com",
           "cdn.lnori.com",
@@ -293,7 +293,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "bc54251b54fa9d52c85e70fb9a20eee178935b05b0350f325874ba3b10a7bacf",
+      "moduleSHA256": "5c173dfc0e3802eacecb7f61ce8b97cda782bae75be32300d0699d10026a6906",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -302,6 +302,83 @@
         "note": null,
         "limitations": [
           "Volume text is supported. Manko currently removes external illustrations when generating EPUBs."
+        ],
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
+      },
+      "upstream": null
+    },
+    {
+      "id": "MangaBat",
+      "name": "MangaBat",
+      "description": "English manga discovery, search, and chapter reading from www.mangabats.com.",
+      "version": "0.1.0",
+      "icon": "icons/MangaBat.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "ADULT",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaBat",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaBat/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaBat",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MangaBat/0.1.0/main.wasm",
+        "sha256": "7211e33b75f8ca9d2d735fcd6fdbedf3086152130d6d59cf26c1ff63d0f35cb1",
+        "size": 2168140,
+        "allowedHTTPSHosts": [
+          "www.mangabats.com",
+          "*.mkklcdnv6temp.com",
+          "*.mkklcdnv5temp.com",
+          "*.mkklcdnv4temp.com",
+          "*.mkklcdnv3temp.com"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      },
+      "moduleSHA256": "7211e33b75f8ca9d2d735fcd6fdbedf3086152130d6d59cf26c1ff63d0f35cb1",
+      "license": "Apache-2.0",
+      "compatibility": {
+        "adapter": "native-rust-wasm",
+        "status": "supported",
+        "scope": "core",
+        "note": null,
+        "limitations": [
+          "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
         ],
         "runtime": "native-wasm",
         "apiVersion": "2.0"
@@ -461,6 +538,160 @@
         "note": null,
         "limitations": [
           "Uses the public mobile reader. Unexpected image CDN domains require an extension update."
+        ],
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
+      },
+      "upstream": null
+    },
+    {
+      "id": "MangaKakalot",
+      "name": "MangaKakalot",
+      "description": "English manga discovery, search, and chapter reading from www.mangakakalot.gg.",
+      "version": "0.1.0",
+      "icon": "icons/MangaKakalot.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "ADULT",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaKakalot",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaKakalot/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaKakalot",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MangaKakalot/0.1.0/main.wasm",
+        "sha256": "b3c3f89fda29da5a8acff99416925b0f21cbaff909cf96cfdabb3fa790778deb",
+        "size": 2168137,
+        "allowedHTTPSHosts": [
+          "www.mangakakalot.gg",
+          "*.mkklcdnv6temp.com",
+          "*.mkklcdnv5temp.com",
+          "*.mkklcdnv4temp.com",
+          "*.mkklcdnv3temp.com"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      },
+      "moduleSHA256": "b3c3f89fda29da5a8acff99416925b0f21cbaff909cf96cfdabb3fa790778deb",
+      "license": "Apache-2.0",
+      "compatibility": {
+        "adapter": "native-rust-wasm",
+        "status": "supported",
+        "scope": "core",
+        "note": null,
+        "limitations": [
+          "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
+        ],
+        "runtime": "native-wasm",
+        "apiVersion": "2.0"
+      },
+      "upstream": null
+    },
+    {
+      "id": "MangaNato",
+      "name": "MangaNato",
+      "description": "English manga discovery, search, and chapter reading from www.manganato.gg.",
+      "version": "0.1.0",
+      "icon": "icons/MangaNato.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "ADULT",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "universalLink": "https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=MangaNato",
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaNato/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaNato",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MangaNato/0.1.0/main.wasm",
+        "sha256": "57fb49956579c092de024121d99e5899eb9480b716016cb2bcb0c7d26c6955bb",
+        "size": 2168137,
+        "allowedHTTPSHosts": [
+          "www.manganato.gg",
+          "*.mkklcdnv6temp.com",
+          "*.mkklcdnv5temp.com",
+          "*.mkklcdnv4temp.com",
+          "*.mkklcdnv3temp.com"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      },
+      "moduleSHA256": "57fb49956579c092de024121d99e5899eb9480b716016cb2bcb0c7d26c6955bb",
+      "license": "Apache-2.0",
+      "compatibility": {
+        "adapter": "native-rust-wasm",
+        "status": "supported",
+        "scope": "core",
+        "note": null,
+        "limitations": [
+          "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
         ],
         "runtime": "native-wasm",
         "apiVersion": "2.0"
