@@ -2,7 +2,8 @@
 /* Copyright © 2025 Inkdex */
 /* Copyright © 2026 manko Extension Contributors */
 
-import rawDefaultCatalog from "../../../../../dist/v1/stable/catalog.json";
+import rawCommunityCatalog from "../../../../../dist/community/v1/stable/catalog.json";
+import rawDefaultCatalog from "../../../../../dist/official/v1/stable/catalog.json";
 
 export interface Developer {
   name: string;
@@ -72,7 +73,7 @@ interface RawCatalog {
   sources?: unknown;
 }
 
-const MANKO_REPOSITORY_URL = "https://k800k.github.io/manko/repository/";
+const MANKO_REPOSITORY_URL = "manko://repository/";
 
 function stringValue(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim() || fallback : fallback;
@@ -289,3 +290,5 @@ export function formatBytes(value?: number): string {
 }
 
 export const DEFAULT_CATALOG = normalizeCatalog(rawDefaultCatalog, { isDefault: true });
+
+export const COMMUNITY_CATALOG = normalizeCatalog(rawCommunityCatalog);

@@ -15,7 +15,7 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: false,
   sitemap: {
-    hostname: "https://k800k.github.io/extensions/",
+    hostname: "https://kayvenchen.github.io/extensions/",
   },
   head: [
     ["meta", { name: "theme-color", content: "#ff9500" }],
@@ -28,7 +28,8 @@ export default defineConfig({
       provider: "local",
     },
     nav: [
-      { text: "Home", link: "/" },
+      { text: "Official", link: "/" },
+      { text: "Community", link: "/community" },
       { text: "Installation", link: "/installation" },
       { text: "Extension List", link: "/extension-list" },
       {

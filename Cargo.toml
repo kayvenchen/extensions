@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  "extensions/content/OPDS",
+  "extensions/content/Kavita",
+  "extensions/content/Suwayomi",
   "packages/mangabox",
   "extensions/content/MangaKakalot",
   "extensions/content/MangaNato",

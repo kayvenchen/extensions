@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 2,
+  "repository": {
+    "id": "manko.official",
+    "name": "Manko Official",
+    "description": "User-installed connectors for personal servers and reading-list trackers.",
+    "homepage": "https://kayvenchen.github.io/extensions/",
+    "privacyURL": "https://github.com/k800k/extensions/blob/main/PRIVACY.md",
+    "publisher": {
+      "name": "Manko Contributors"
+    }
+  },
+  "sources": [
+    {
+      "id": "AniList",
+      "name": "AniList",
+      "description": "Track manga progress and lists with AniList.",
+      "version": "2.1.1",
+      "icon": "icons/AniList.svg",
+      "languages": [
+        "multi"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "authentication",
+        "progress",
+        "trackerCollections",
+        "trackerSearch"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/tracker/AniList/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/tracker/AniList",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "tracker",
+      "availability": "available",
+      "permissions": {
+        "values": [
+          "authenticationHandoff",
+          "network",
+          "secureState",
+          "trackerUpdates"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/AniList/2.1.1/main.wasm",
+        "sha256": "e7e0f632c3725ce76b58a1ceadb846e4c36f21db97b4d6954d245040728a6f18",
+        "size": 1251750,
+        "allowedHTTPSHosts": [
+          "anilist.co",
+          "graphql.anilist.co",
+          "s4.anilist.co"
+        ],
+        "authenticationModes": [
+          "oauth2Implicit"
+        ]
+      }
+    },
+    {
+      "id": "Kavita",
+      "name": "Kavita",
+      "description": "Connect to your own Kavita server. Manko manages connection details, credentials and downloads.",
+      "version": "0.1.0",
+      "icon": "icons/Kavita.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "browse",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "authentication",
+        "acquisition"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Kavita/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Kavita",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "available",
+      "permissions": {
+        "values": [
+          "network",
+          "redactedLogging"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/Kavita/0.1.0/main.wasm",
+        "sha256": "459020952bfeb1ce59b6b71140aa5e7e6f06628026b34bc491c834f9e797bf66",
+        "size": 447748,
+        "allowedHTTPSHosts": [],
+        "authenticationModes": [
+          "none",
+          "basic",
+          "bearer",
+          "apiKey"
+        ],
+        "connectorKind": "kavita"
+      }
+    },
+    {
+      "id": "Komga",
+      "name": "Komga",
+      "description": "Connect to your own Komga servers. Connection details, credentials and publication downloads are managed by manko.",
+      "version": "0.1.1",
+      "icon": "icons/Komga.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "browse",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "authentication",
+        "acquisition"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Komga/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Komga",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "available",
+      "permissions": {
+        "values": [
+          "network",
+          "redactedLogging"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/Komga/0.1.1/main.wasm",
+        "sha256": "fe6afdeb651a23328e6a99da1a3753d00d31a3d418ee5c7829976132fd482f69",
+        "size": 434831,
+        "allowedHTTPSHosts": [],
+        "authenticationModes": [
+          "none",
+          "basic",
+          "bearer",
+          "apiKey"
+        ],
+        "connectorKind": "komga"
+      }
+    },
+    {
+      "id": "MyAnimeList",
+      "name": "MyAnimeList",
+      "description": "Track manga progress and lists with MyAnimeList.",
+      "version": "2.1.1",
+      "icon": "icons/MyAnimeList.svg",
+      "languages": [
+        "multi"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "authentication",
+        "progress",
+        "trackerCollections",
+        "trackerSearch"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/tracker/MyAnimeList/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/tracker/MyAnimeList",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "tracker",
+      "availability": "available",
+      "permissions": {
+        "values": [
+          "authenticationHandoff",
+          "network",
+          "secureState",
+          "trackerUpdates"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MyAnimeList/2.1.1/main.wasm",
+        "sha256": "cd8fecfd5d5b8043f0a706e6fddb0d3eb212d26a6cad29f932199eaa0a3689f2",
+        "size": 431865,
+        "allowedHTTPSHosts": [
+          "api.myanimelist.net",
+          "cdn.myanimelist.net",
+          "myanimelist.net"
+        ],
+        "authenticationModes": [
+          "oauth2PKCE"
+        ]
+      }
+    },
+    {
+      "id": "OPDS",
+      "name": "OPDS",
+      "description": "Connect to your own OPDS server. Manko manages connection details, credentials and downloads.",
+      "version": "0.1.0",
+      "icon": "icons/OPDS.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "browse",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "authentication",
+        "acquisition"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/OPDS/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/OPDS",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "available",
+      "permissions": {
+        "values": [
+          "network",
+          "redactedLogging",
+          "state"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/OPDS/0.1.0/main.wasm",
+        "sha256": "d67fc81a8e80f7b58446672f47d4d1a3a1496eb653c3e3746060dd9c35f649aa",
+        "size": 551383,
+        "allowedHTTPSHosts": [],
+        "authenticationModes": [
+          "none",
+          "basic",
+          "bearer",
+          "apiKey"
+        ],
+        "connectorKind": "opds"
+      }
+    },
+    {
+      "id": "Suwayomi",
+      "name": "Suwayomi",
+      "description": "Connect to your own Suwayomi server. Manko manages connection details, credentials and downloads.",
+      "version": "0.1.0",
+      "icon": "icons/Suwayomi.svg",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "SAFE",
+      "capabilities": [
+        "browse",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "authentication",
+        "acquisition",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/Suwayomi/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/Suwayomi",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "available",
+      "permissions": {
+        "values": [
+          "network",
+          "redactedLogging"
+        ]
+      },
+      "extension": {
+        "apiVersion": "2.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/Suwayomi/0.1.0/main.wasm",
+        "sha256": "eb93f55deb81f6bae0b97dfd20940d5d0a20fae45cda42f2347f3f9b2694cadd",
+        "size": 438270,
+        "allowedHTTPSHosts": [],
+        "authenticationModes": [
+          "none",
+          "basic",
+          "bearer",
+          "apiKey"
+        ],
+        "connectorKind": "suwayomi"
+      }
+    }
+  ]
+}

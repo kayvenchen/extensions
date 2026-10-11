@@ -2,8 +2,12 @@
 
 Native WebAssembly Extension API 2.0 modules, a shared Rust SDK, the manko-ext publishing CLI, and the documentation website.
 
-The local catalog contains AniList, MyAnimeList, HitomiLA, NHentai, LNORI, Omega Scans, MangaFox, MangaFire, MangaKakalot, MangaNato, MangaBat, and the Komga connector pilot. New providers are prepared locally; publication remains a separate release step. Existing source IDs and the repository URL are unchanged:
-https://k800k.github.io/extensions/dist/v1/stable/
+Two independent repositories are published from this workspace:
+
+- Official: OPDS, Komga, Kavita, Suwayomi, AniList and MyAnimeList — `https://kayvenchen.github.io/extensions/dist/official/v1/stable/`
+- Community: separately maintained content scrapers — `https://kayvenchen.github.io/extensions/dist/community/v1/stable/`
+
+Manko starts empty. Adding a repository installs nothing; users choose each package explicitly. The old mixed catalog is retired and empty.
 
 ## Build And Validate
 
@@ -31,10 +35,6 @@ Scaffolding adds the crate to the workspace. Implement its JSON operations with 
 
 See [ABI.md](ABI.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md).
 
-## Migration And Release
+## Server connectors
 
-Existing JavaScript installations remain unavailable until the user selects Update. Manko preserves library IDs, downloads, history, settings, cookies, credentials and tracker queues. Failed staged validation leaves the prior installation intact. Removed providers keep their library content and removal controls.
-
-Do not publish this catalog until the WASM-capable Manko app is released. Prepare local artifacts and run the publish dry run first. Other repositories remain supported by Manko when they publish compatible API 2.0 modules; native server connectors are unaffected.
-
-Komga uses the same Rust/WASM toolchain with connector profile v1. Install the package, then add independent servers or explicitly switch an existing connection in Source Settings. Keep its catalog unpublished until a connector-capable Manko release is available.
+All four server integrations run as downloaded WASM packages. Native Manko code owns endpoint policy, credentials and publication/image transfers. Install a connector, then add a connection from Extensions. Each connection has its own identity and state namespace. No server, repository, package or tracker account is preinstalled.

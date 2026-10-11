@@ -19,7 +19,7 @@ export const extensionPermissions = new Set([
 ]);
 
 export const authenticationModes = new Set([
-  "none", "basic", "apiKey", "oauth2Implicit", "oauth2PKCE", "visibleWebSession"
+  "none", "basic", "bearer", "apiKey", "oauth2Implicit", "oauth2PKCE", "visibleWebSession"
 ]);
 
 const availabilities = new Set(["approvalRequired", "available", "serviceUnavailable", "retired"]);
@@ -97,7 +97,7 @@ export async function assertExtensionPackage(directory, expectedKind, expectedID
   assert.ok(metadata.permissions.includes("network"), "network permission is required by this catalog");
   if (metadata.connectorKind !== undefined) {
     assert.equal(expectedKind, "content", "connectors must be content extensions");
-    assert.equal(metadata.connectorKind, "komga", "unsupported connector profile");
+    assert.ok(["opds", "komga", "kavita", "suwayomi"].includes(metadata.connectorKind), "unsupported connector profile");
   }
   assertStringArray(metadata.allowedHTTPSHosts, "allowedHTTPSHosts", undefined, { required: metadata.connectorKind === undefined });
   assert.ok(metadata.allowedHTTPSHosts.every(isAllowedHTTPSHost), "allowedHTTPSHosts must contain exact public lower-case hostnames or explicit *. subdomain patterns");

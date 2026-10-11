@@ -1,0 +1,57 @@
+{
+  "id": "OPDS",
+  "name": "OPDS",
+  "description": "Connect to your own OPDS server. Manko manages connection details, credentials and downloads.",
+  "kind": "content",
+  "apiVersion": "2.0",
+  "runtime": "wasm",
+  "crate": "manko-opds",
+  "connectorKind": "opds",
+  "version": "0.1.0",
+  "language": "en",
+  "languages": [
+    "en"
+  ],
+  "contentRating": "SAFE",
+  "availability": "available",
+  "capabilities": [
+    "browse",
+    "search",
+    "filters",
+    "details",
+    "installments",
+    "authentication",
+    "acquisition"
+  ],
+  "permissions": [
+    "network",
+    "redactedLogging",
+    "state"
+  ],
+  "allowedHTTPSHosts": [],
+  "authenticationModes": [
+    "none",
+    "basic",
+    "bearer",
+    "apiKey"
+  ],
+  "developers": [
+    {
+      "name": "manko Extension Contributors"
+    }
+  ],
+  "iconFile": "icon.svg",
+  "license": "Apache-2.0",
+  "homepage": "https://opds.io",
+  "compatibility": {
+    "adapter": "native-rust-wasm",
+    "status": "supported",
+    "scope": "connector",
+    "note": "Requires a Manko release supporting all server connectors. No repository or package is preinstalled.",
+    "limitations": [
+      "User-configured servers only. Progress write-back is not implemented."
+    ],
+    "runtime": "native-wasm",
+    "apiVersion": "2.0"
+  }
+}

@@ -1,21 +1,62 @@
 {
   "counts": {
-    "content": 10,
+    "content": 13,
     "tracker": 2
+  },
+  "packs": {
+    "official": [
+      "AniList",
+      "Kavita",
+      "Komga",
+      "MyAnimeList",
+      "OPDS",
+      "Suwayomi"
+    ],
+    "community": [
+      "HitomiLA",
+      "LNori",
+      "MangaBat",
+      "MangaFire",
+      "MangaFox",
+      "MangaKakalot",
+      "MangaNato",
+      "NHentai",
+      "OmegaScans"
+    ]
   },
   "entries": [
     {
       "id": "AniList",
       "kind": "tracker",
-      "availability": "approvalRequired"
+      "availability": "available"
     },
     {
-      "id": "HitomiLA",
+      "id": "Kavita",
       "kind": "content",
-      "availability": "approvalRequired"
+      "availability": "available"
     },
     {
       "id": "Komga",
+      "kind": "content",
+      "availability": "available"
+    },
+    {
+      "id": "MyAnimeList",
+      "kind": "tracker",
+      "availability": "available"
+    },
+    {
+      "id": "OPDS",
+      "kind": "content",
+      "availability": "available"
+    },
+    {
+      "id": "Suwayomi",
+      "kind": "content",
+      "availability": "available"
+    },
+    {
+      "id": "HitomiLA",
       "kind": "content",
       "availability": "approvalRequired"
     },
@@ -47,11 +88,6 @@
     {
       "id": "MangaNato",
       "kind": "content",
-      "availability": "approvalRequired"
-    },
-    {
-      "id": "MyAnimeList",
-      "kind": "tracker",
       "availability": "approvalRequired"
     },
     {

@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "../dist/v1/stable/catalog.json"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "../dist/official/v1/stable/catalog.json", "../dist/community/v1/stable/catalog.json"]
 }

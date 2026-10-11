@@ -23,7 +23,7 @@ Add the external repository once, then get or update extensions individually ins
 
 ## Choose extensions
 
-Open the [Extension List](/extension-list) to browse content and tracker extensions by language, version, content rating, and provider website.
+The [Official catalog](/) contains server connectors and trackers. The [Community catalog](/community) separately contains content sources. Neither repository is preinstalled.
 
 Use Get to install an extension and Update when the repository publishes a newer version. Repository refresh checks `versioning.json` and never installs an extension automatically.
 

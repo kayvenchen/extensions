@@ -149,15 +149,13 @@ async function check() {
   const ids = entries.map(entry => entry.id);
   if (new Set(ids).size !== ids.length) throw new Error("Extension IDs must be unique");
   for (const entry of entries) await assertExtensionPackage(extensionDirectory(entry.kind, entry.id), entry.kind, entry.id);
-  const manifestPath = join(ROOT, "dist", "v1", "stable", "versioning.json");
-  try {
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    const manifestIDs = manifest.sources.map(source => source.id);
-    if (manifest.schemaVersion !== 2 || JSON.stringify(manifestIDs) !== JSON.stringify(ids)) throw new Error("Generated manifest does not match the extension directories");
-    if (manifest.sources.some(source => !EXTENSION_ROOTS[source.kind])) throw new Error("Generated manifest contains an unsupported extension kind");
-    if (manifest.sources.some(source => source.entryType !== "extension" || !source.extension)) throw new Error("Generated manifest contains a legacy extension payload");
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+  const packs = await catalogPacks(entries);
+  for (const [name, packEntries] of Object.entries(packs)) {
+    try {
+      const manifest = JSON.parse(await readFile(join(ROOT, "dist", name, "v1", "stable", "versioning.json"), "utf8"));
+      if (manifest.schemaVersion !== 2 || JSON.stringify(manifest.sources.map(source => source.id)) !== JSON.stringify(packEntries.map(entry => entry.id))) throw new Error(`Generated ${name} manifest does not match its packages`);
+      if (manifest.sources.some(source => !EXTENSION_ROOTS[source.kind] || source.entryType !== "extension" || !source.extension)) throw new Error(`Invalid ${name} manifest`);
+    } catch (error) { if (error.code !== "ENOENT") throw error; }
   }
   const trackers = entries.filter(entry => entry.kind === "tracker").length;
   console.log(`check: ${entries.length} extensions (${entries.length - trackers} content, ${trackers} tracker)`);
@@ -170,16 +168,46 @@ async function pruneGeneratedFiles(directory, expected, matchesGeneratedName) {
   }
 }
 
+async function catalogPacks(entries) {
+  const packs = { official: [], community: [] };
+  for (const entry of entries) {
+    const metadata = await assertExtensionPackage(extensionDirectory(entry.kind, entry.id), entry.kind, entry.id);
+    packs[entry.kind === "tracker" || metadata.connectorKind ? "official" : "community"].push(entry);
+  }
+  return packs;
+}
+
 async function buildArtifacts() {
   await assertSupportedLayout();
   const entries = await extensionEntries(selectedKinds());
-  const ids = entries.map(entry => entry.id);
-  const config = JSON.parse(await readFile(join(ROOT, "repository.config.json"), "utf8"));
+  const packs = await catalogPacks(entries);
+  const configuration = JSON.parse(await readFile(join(ROOT, "repository.config.json"), "utf8"));
+  const manifests = [];
+  for (const [packName, packEntries] of Object.entries(packs)) {
+    manifests.push(await buildCatalog(packName, packEntries, configuration.packs[packName]));
+  }
+  // Keep the old mixed repository empty so old links cannot install either pack implicitly.
+  await rm(join(ROOT, "dist", "v1", "stable", "sources"), { recursive: true, force: true });
+  await rm(join(ROOT, "dist", "v1", "stable", "icons"), { recursive: true, force: true });
+  await writeJSON(join(ROOT, "dist", "v1", "stable", "versioning.json"), {
+    schemaVersion: 2,
+    repository: { id: "k800k.extensions", name: "Manko Legacy Catalog", description: "This mixed catalog is retired. Add Manko Official or Manko Community separately.", homepage: "https://k800k.github.io/extensions/", publisher: { name: "Manko Contributors" } },
+    sources: []
+  });
+  await writeJSON(join(ROOT, "dist", "v1", "stable", "catalog.json"), { repositoryURL: "https://k800k.github.io/extensions/dist/v1/stable/", sources: [] });
+  const sources = manifests.flatMap(manifest => manifest.sources);
+  const counts = Object.fromEntries(Object.keys(EXTENSION_ROOTS).map(kind => [kind, entries.filter(entry => entry.kind === kind).length]));
+  await writeJSON(join(ROOT, "inventory", "registry.json"), { entries });
+  await writeJSON(join(ROOT, "inventory", "status.json"), { counts, packs: Object.fromEntries(Object.entries(packs).map(([name, entries]) => [name, entries.map(entry => entry.id)])), entries: sources.map(source => ({ id: source.id, kind: source.kind, availability: source.availability })) });
+  return manifests;
+}
+
+async function buildCatalog(packName, entries, config) {
   const sourceRevision = process.env.MANKO_SOURCE_REVISION?.trim() || "main";
   if (!/^(?:main|[0-9a-f]{40})$/.test(sourceRevision)) {
     throw new Error("MANKO_SOURCE_REVISION must be main or a full Git commit SHA");
   }
-  const output = join(ROOT, "dist", "v1", "stable");
+  const output = join(ROOT, "dist", packName, "v1", "stable");
   const sourcesDirectory = join(output, "sources");
   const iconsDirectory = join(output, "icons");
   await rm(sourcesDirectory, { recursive: true, force: true });
@@ -212,7 +240,6 @@ async function buildArtifacts() {
       contentRating: metadata.contentRating,
       capabilities: metadata.capabilities,
       developers: metadata.developers.map(developer => ({ name: developer.name })),
-      universalLink: `https://k800k.github.io/manko/repository/install?url=https%3A%2F%2Fk800k.github.io%2Fextensions%2Fdist%2Fv1%2Fstable%2F&source=${encodeURIComponent(id)}`,
       rightsDeclaration: `Licensed under ${metadata.license || "Apache-2.0"}.`,
       rightsURL: `https://github.com/k800k/extensions/blob/${sourceRevision}/extensions/${kind}/${id}/LICENSE`,
       reportURL: "https://github.com/k800k/extensions/issues/new/choose",
@@ -257,23 +284,25 @@ async function buildArtifacts() {
     sources
   };
   await writeJSON(join(output, "versioning.json"), manifest);
-  await writeJSON(join(output, "catalog.json"), { repositoryURL: "https://k800k.github.io/extensions/dist/v1/stable/", sources: catalog });
-  const counts = Object.fromEntries(Object.keys(EXTENSION_ROOTS).map(kind => [kind, entries.filter(entry => entry.kind === kind).length]));
-  await writeJSON(join(ROOT, "inventory", "registry.json"), { entries });
-  await writeJSON(join(ROOT, "inventory", "status.json"), { counts, entries: sources.map(source => ({ id: source.id, kind: source.kind, availability: source.availability })) });
+  await writeJSON(join(output, "catalog.json"), { repositoryURL: config.repositoryURL, repository: { name: config.name }, sources: catalog });
   console.log(`Bundled ${sources.length} deterministic WASM module${sources.length === 1 ? "" : "s"}.`);
   return manifest;
 }
 
 async function publish() {
-  const output = join(ROOT, "dist", "v1", "stable");
-  const manifestBytes = await readFile(join(output, "versioning.json"));
-  const current = JSON.parse(manifestBytes);
-  for (const source of current.sources) {
-    const bytes = await readFile(join(output, source.extension.moduleURL));
-    if (bytes.length !== source.extension.size || sha256(bytes) !== source.extension.sha256) throw new Error(`Script hash mismatch: ${source.id}`);
+  const configs = JSON.parse(await readFile(join(ROOT, "repository.config.json"), "utf8")).packs;
+  for (const packName of Object.keys(configs)) {
+    const output = join(ROOT, "dist", packName, "v1", "stable");
+    const current = JSON.parse(await readFile(join(output, "versioning.json")));
+    for (const source of current.sources) {
+      const bytes = await readFile(join(output, source.extension.moduleURL));
+      if (bytes.length !== source.extension.size || sha256(bytes) !== source.extension.sha256) throw new Error(`Script hash mismatch: ${source.id}`);
+      const official = source.kind === "tracker" || Boolean(source.extension.connectorKind);
+      if (official !== (packName === "official")) throw new Error(`Wrong catalog membership: ${source.id}`);
+      validateModule(bytes, source);
+    }
+    console.log(`publish dry-run: ${packName}: ${current.sources.length} packages validated`);
   }
-  console.log(`publish dry-run: ${current.sources.length} module hash${current.sources.length === 1 ? "" : "es"} and compatibility metadata validated`);
 }
 
 async function createNew() {

@@ -8,6 +8,6 @@ const { frontmatter } = useData();
 </script>
 
 <template>
-  <SourceList v-if="frontmatter.layout === 'catalog'" />
+  <SourceList v-if="frontmatter.layout === 'catalog'" :key="frontmatter.pack || 'official'" :pack="frontmatter.pack" />
   <DefaultTheme.Layout v-else />
 </template>

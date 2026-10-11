@@ -15,6 +15,7 @@ pub type Result<T> = std::result::Result<T, Value>;
 pub type Operation = Pin<Box<dyn Future<Output = Result<Value>>>>;
 pub type Handler = fn(Context, String, Value) -> Operation;
 pub mod content;
+pub mod connector;
 
 pub fn error(message: impl Into<String>, kind: &str) -> Value {
     let mut chars = kind.chars();

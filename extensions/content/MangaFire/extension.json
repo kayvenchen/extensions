@@ -6,7 +6,7 @@
   "apiVersion": "2.0",
   "runtime": "wasm",
   "crate": "manko-mangafire",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "language": "en",
   "languages": [
     "en",

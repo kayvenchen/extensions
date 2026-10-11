@@ -3,10 +3,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { withBase } from "vitepress";
-import { buildAddRepositoryLink, buildInstallLink, DEFAULT_CATALOG, normalizeCatalog, type CatalogSource, type NormalizedCatalog } from "../lib/catalog";
+import { buildAddRepositoryLink, buildInstallLink, DEFAULT_CATALOG, COMMUNITY_CATALOG, normalizeCatalog, type CatalogSource, type NormalizedCatalog } from "../lib/catalog";
 import { compareLanguages, filterSources, groupSources, isInstallable, languageLabel, PROVIDER_HOMEPAGES } from "../lib/source-list";
 
-const catalog = ref<NormalizedCatalog | null>(DEFAULT_CATALOG);
+const props = defineProps<{ pack?: string }>();
+const pack = props.pack === "community" ? "community" : "official";
+const catalog = ref<NormalizedCatalog | null>(pack === "community" ? COMMUNITY_CATALOG : DEFAULT_CATALOG);
 const loading = ref(true);
 const error = ref("");
 const filters = reactive({ search: "", language: "", rating: "" });
@@ -24,7 +26,7 @@ function installLink(source: CatalogSource) {
 
 function iconURL(source: CatalogSource) {
   return source.iconURL?.startsWith(source.repository.url)
-    ? withBase(`/dist/v1/stable/${source.iconURL.slice(source.repository.url.length)}`)
+    ? withBase(`/dist/${pack}/v1/stable/${source.iconURL.slice(source.repository.url.length)}`)
     : source.iconURL ?? undefined;
 }
 
@@ -39,7 +41,7 @@ async function loadCatalog() {
   loading.value = true;
   error.value = "";
   try {
-    const response = await fetch(withBase("/dist/v1/stable/catalog.json"), { cache: "no-store", signal: controller.signal });
+    const response = await fetch(withBase(`/dist/${pack}/v1/stable/catalog.json`), { cache: "no-store", signal: controller.signal });
     if (!response.ok) throw new Error(`Catalog request failed (${response.status}).`);
     catalog.value = normalizeCatalog(await response.json(), { isDefault: true });
   } catch (failure) {
@@ -64,8 +66,8 @@ onUnmounted(() => request?.abort());
       </svg>
     </a>
     <header>
-      <h1>manko Sources</h1>
-      <p>Browse community-maintained Manko extensions. Add this repository to Manko to install and update sources from within the app.</p>
+      <h1>{{ pack === "official" ? "Manko Official" : "Manko Community" }}</h1>
+      <p>{{ pack === "official" ? "Connect to your own servers and tracking accounts. Nothing is installed until you add the repository and choose an extension." : "Browse separately maintained content sources. Add this repository only if you want these extensions." }}</p>
     </header>
     <main>
       <div id="add-repo-btn">
@@ -136,7 +138,7 @@ onUnmounted(() => request?.abort());
         </section>
       </div>
     </main>
-    <footer><a :href="withBase('/installation')">Installation help</a> · <a :href="withBase('/guides/')">Documentation</a></footer>
+    <footer><a :href="withBase(pack === 'official' ? '/community' : '/')">{{ pack === "official" ? "Community catalog" : "Official catalog" }}</a> · <a :href="withBase('/installation')">Installation help</a> · <a :href="withBase('/guides/')">Documentation</a></footer>
   </div>
 </template>
 

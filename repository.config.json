@@ -1,8 +1,22 @@
 {
-  "id": "k800k.extensions",
-  "name": "manko Extensions",
-  "description": "External Manko Extension API 2.0 WASM catalog.",
-  "homepage": "https://k800k.github.io/extensions/",
-  "privacyURL": "https://github.com/k800k/extensions/blob/main/PRIVACY.md",
-  "publisherName": "manko Extension Contributors"
+  "packs": {
+    "official": {
+      "id": "manko.official",
+      "name": "Manko Official",
+      "description": "User-installed connectors for personal servers and reading-list trackers.",
+      "homepage": "https://kayvenchen.github.io/extensions/",
+      "privacyURL": "https://github.com/k800k/extensions/blob/main/PRIVACY.md",
+      "publisherName": "Manko Contributors",
+      "repositoryURL": "https://kayvenchen.github.io/extensions/dist/official/v1/stable/"
+    },
+    "community": {
+      "id": "manko.community",
+      "name": "Manko Community",
+      "description": "Independently installed website content sources. Not included with Manko.",
+      "homepage": "https://kayvenchen.github.io/extensions/",
+      "privacyURL": "https://github.com/k800k/extensions/blob/main/PRIVACY.md",
+      "publisherName": "Manko Contributors",
+      "repositoryURL": "https://kayvenchen.github.io/extensions/dist/community/v1/stable/"
+    }
+  }
 }

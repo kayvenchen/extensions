@@ -7,13 +7,13 @@
   "runtime": "wasm",
   "crate": "manko-komga",
   "connectorKind": "komga",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "language": "en",
   "languages": [
     "en"
   ],
   "contentRating": "SAFE",
-  "availability": "approvalRequired",
+  "availability": "available",
   "capabilities": [
     "browse",
     "search",
@@ -31,6 +31,7 @@
   "authenticationModes": [
     "none",
     "basic",
+    "bearer",
     "apiKey"
   ],
   "developers": [

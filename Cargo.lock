@@ -440,7 +440,7 @@ checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
 
 [[package]]
 name = "manko-anilist"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "manko-sdk",
  "regex",
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "manko-hitomi"
-version = "2.0.6"
+version = "2.0.7"
 dependencies = [
  "base64",
  "futures",
@@ -462,7 +462,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "manko-komga"
+name = "manko-kavita"
 version = "0.1.0"
 dependencies = [
  "manko-sdk",
@@ -471,8 +471,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "manko-komga"
+version = "0.1.1"
+dependencies = [
+ "manko-sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "manko-lnori"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "manko-sdk",
  "manko-site-support",
@@ -483,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "manko-mangabat"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "manko-mangabox",
  "manko-sdk",
@@ -503,7 +512,7 @@ dependencies = [
 
 [[package]]
 name = "manko-mangafire"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "base64",
  "manko-sdk",
@@ -514,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "manko-mangafox"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "manko-sdk",
  "manko-site-support",
@@ -525,7 +534,7 @@ dependencies = [
 
 [[package]]
 name = "manko-mangakakalot"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "manko-mangabox",
  "manko-sdk",
@@ -534,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "manko-manganato"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "manko-mangabox",
  "manko-sdk",
@@ -543,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "manko-myanimelist"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "manko-sdk",
  "serde_json",
@@ -552,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "manko-nhentai"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "manko-sdk",
  "serde_json",
@@ -561,12 +570,23 @@ dependencies = [
 
 [[package]]
 name = "manko-omegascans"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "manko-sdk",
  "manko-site-support",
  "regex",
  "serde_json",
+ "url",
+]
+
+[[package]]
+name = "manko-opds"
+version = "0.1.0"
+dependencies = [
+ "manko-sdk",
+ "roxmltree",
+ "serde_json",
+ "sha2",
  "url",
 ]
 
@@ -592,6 +612,15 @@ dependencies = [
  "manko-sdk",
  "regex",
  "scraper",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "manko-suwayomi"
+version = "0.1.0"
+dependencies = [
+ "manko-sdk",
  "serde_json",
  "url",
 ]
@@ -811,6 +840,12 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "roxmltree"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
 
 [[package]]
 name = "rustc_version"

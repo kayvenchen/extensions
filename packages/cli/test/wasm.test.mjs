@@ -8,27 +8,31 @@ import {resolve} from "node:path";
 import {validateModule, instantiate} from "../lib/wasm.mjs";
 import {assertExtensionPackage} from "../lib/contracts.mjs";
 const root=resolve(import.meta.dirname,"../../..");
-const ids=["AniList","HitomiLA","Komga","LNori","MangaBat","MangaFire","MangaFox","MangaKakalot","MangaNato","MyAnimeList","NHentai","OmegaScans"];
+const packs={official:["AniList","Kavita","Komga","MyAnimeList","OPDS","Suwayomi"],community:["HitomiLA","LNori","MangaBat","MangaFire","MangaFox","MangaKakalot","MangaNato","NHentai","OmegaScans"]};
 
-test("Catalog contains all twelve WASM extensions with matching digests",async()=>{
-  const manifest=JSON.parse(await readFile(resolve(root,"dist/v1/stable/versioning.json")));
-  assert.equal(manifest.schemaVersion,2);
-  assert.deepEqual(manifest.sources.map(entry=>entry.id),ids);
-  assert.deepEqual((await readdir(resolve(root,"dist/v1/stable/sources"))).sort(),ids);
-  for(const entry of manifest.sources){
-    const metadata=JSON.parse(await readFile(resolve(root,"extensions",entry.kind,entry.id,"extension.json")));
-    assert.equal(entry.version,metadata.version);
-    assert.equal(entry.extension.runtime,"wasm");
-    assert.equal(entry.extension.apiVersion,"2.0");
-    assert.equal(entry.extension.scriptURL,undefined);
-    const bytes=await readFile(resolve(root,"dist/v1/stable",entry.extension.moduleURL));
-    assert.equal(bytes.length,entry.extension.size);
-    assert.equal(createHash("sha256").update(bytes).digest("hex"),entry.extension.sha256);
-    assert.ok(!bytes.includes(Buffer.from(root)), "module must not embed checkout paths");
-    assert.ok(!bytes.includes(Buffer.from("/Users/")), "module must not embed macOS home paths");
-    assert.ok(!bytes.includes(Buffer.from("/home/")), "module must not embed Linux home paths");
-    validateModule(bytes,entry);
+test("Independent catalogs contain only their packages with matching digests",async()=>{
+  for(const [pack,ids] of Object.entries(packs)) {
+    const directory=resolve(root,`dist/${pack}/v1/stable`);
+    const manifest=JSON.parse(await readFile(resolve(directory,"versioning.json")));
+    assert.equal(manifest.schemaVersion,2);
+    assert.deepEqual(manifest.sources.map(entry=>entry.id),ids);
+    assert.deepEqual((await readdir(resolve(directory,"sources"))).sort(),ids);
+    for(const entry of manifest.sources){
+      const metadata=JSON.parse(await readFile(resolve(root,"extensions",entry.kind,entry.id,"extension.json")));
+      assert.equal(entry.version,metadata.version);
+      assert.equal(entry.extension.runtime,"wasm");
+      assert.equal(entry.extension.apiVersion,"2.0");
+      assert.equal(entry.extension.scriptURL,undefined);
+      assert.equal(Boolean(metadata.connectorKind || entry.kind === "tracker"),pack === "official");
+      const bytes=await readFile(resolve(directory,entry.extension.moduleURL));
+      assert.equal(bytes.length,entry.extension.size);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"),entry.extension.sha256);
+      for(const path of [root,"/Users/","/home/"]) assert.ok(!bytes.includes(Buffer.from(path)),"module must not embed checkout or home paths");
+      validateModule(bytes,entry);
+    }
   }
+  const retired=JSON.parse(await readFile(resolve(root,"dist/v1/stable/versioning.json")));
+  assert.deepEqual(retired.sources,[]);
 });
 
 test("Validator rejects unsupported metadata, corrupt binaries and oversized modules",async()=>{

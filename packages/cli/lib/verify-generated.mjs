@@ -6,12 +6,12 @@ import {readFileSync} from "node:fs";
 import {validateModule} from "./wasm.mjs";
 
 const root = new URL("../../../", import.meta.url);
-const prefix = "dist/v1/stable/";
+const prefixes = ["dist/official/v1/stable/", "dist/community/v1/stable/"];
 const committed = path => execFileSync("git", ["show", `HEAD:${path}`], {cwd:root, maxBuffer:12 * 1024 * 1024});
 const rebuilt = path => readFileSync(new URL(path, root));
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 
-function verify(read) {
+function verify(read, prefix) {
   const manifest = JSON.parse(read(prefix + "versioning.json"));
   const catalog = JSON.parse(read(prefix + "catalog.json"));
   for (const source of manifest.sources) {
@@ -33,11 +33,14 @@ function verify(read) {
   return {manifest, catalog};
 }
 
-assert.deepEqual(verify(rebuilt), verify(committed), "Generated catalog metadata is stale");
-const modulePaths = new Set(JSON.parse(rebuilt(prefix + "versioning.json")).sources.map(source => prefix + source.extension.moduleURL));
+const modulePaths = new Set();
+for (const prefix of prefixes) {
+  assert.deepEqual(verify(rebuilt, prefix), verify(committed, prefix), "Generated catalog metadata is stale");
+  for (const source of JSON.parse(rebuilt(prefix + "versioning.json")).sources) modulePaths.add(prefix + source.extension.moduleURL);
+}
 const changes = execFileSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "dist", "inventory", "repository.config.json"], {cwd:root, encoding:"utf8"});
 for (const line of changes.trimEnd().split("\n").filter(Boolean)) {
   const path = line.slice(3);
-  assert.ok(line.startsWith(" M ") && (path === prefix + "catalog.json" || path === prefix + "versioning.json" || modulePaths.has(path)), `Unexpected generated change: ${line}`);
+  assert.ok(line.startsWith(" M ") && (prefixes.some(prefix => path === prefix + "catalog.json" || path === prefix + "versioning.json") || modulePaths.has(path)), `Unexpected generated change: ${line}`);
 }
-console.log("Committed and rebuilt artifacts are valid; generated metadata is current.");
+console.log("Committed and rebuilt official/community catalogs are valid and current.");

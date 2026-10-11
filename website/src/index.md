@@ -1,7 +1,6 @@
 ---
 layout: catalog
-title: Extensions
-description: Browse the eight WASM extensions and open their catalog entries in Manko.
+pack: official
+title: Manko Official
+description: Optional server connectors and trackers for Manko.
 ---
-
-<!-- SPDX-License-Identifier: GPL-3.0-or-later -->

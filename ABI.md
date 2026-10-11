@@ -52,9 +52,9 @@ Scores use the host’s 1–10 scale (fractional inbound scores remain fractiona
 
 ## User-owned server connector profile v1
 
-An API 2.0 content package may declare `connectorKind: "komga"` in its local manifest and catalog extension payload. The guest retains the same WASM exports and must implement `connectorInfo`, returning `{ "kind": "komga", "version": 1 }`. The CLI and native staged installer validate this response. Initialization has no server side effects and must work before a connection exists. Older hosts cannot execute the configured connector operations; publish only with a connector-capable Manko release.
+An API 2.0 content package may declare `connectorKind` (`opds`, `komga`, `kavita`, or `suwayomi`) in its local manifest and catalog extension payload. The guest retains the same WASM exports and must implement `connectorInfo`, returning `{ "kind": "komga", "version": 1 }`. The CLI and native staged installer validate this response. Initialization has no server side effects and must work before a connection exists. Older hosts cannot execute the configured connector operations; publish only with a connector-capable Manko release.
 
-One installed package serves multiple native connection records. Connections retain their source ID, endpoint policy, Keychain account and non-secret settings. Existing Komga connections remain native until the user selects an installed connector in Source Settings. Disabled, removed or incompatible selected packages make that connection unavailable; they never silently switch implementation. The user can explicitly select Built-in to recover.
+One installed package serves multiple native connection records. Connections retain their source ID, endpoint policy, Keychain account and non-secret settings. Every connection requires a matching installed connector. Disabled, removed or incompatible selected packages make that connection unavailable; they never silently switch implementation. Install or enable the selected connector to recover; production builds contain no built-in server implementation.
 
 The host invokes `connector` with `{ operation, baseURL, options, ...arguments }`. Credentials and native source/work/chapter IDs are absent. Operations are:
 
@@ -63,10 +63,11 @@ The host invokes `connector` with `{ operation, baseURL, options, ...arguments }
 - `details`: receives `remoteID` and returns one work.
 - `installments`: receives a series `remoteID` and one-based `page`, returning the same page envelope.
 - `acquisition`: receives a book `remoteID`, returning its publication URL without fetching file bytes.
+- `imagePages` (Suwayomi): receives chapter `remoteID`, optional `pageCount`, and page query; returns bounded index/resourceURL descriptors. Native image transport owns credentials, cancellation and downloads.
 
-Work DTOs contain `remoteID`, `title`, `authors`, `summary`, `tags`, nullable `languageCode`, native `kind` / `status` values, and `coverURL`. Installment DTOs contain `remoteID`, `title`, nullable `number`, nullable ISO-8601 `publishedAt`, `format` (`epub`, `pdf`, or `cbz`), `acquisitionURL`, and nullable `pageCount`. The native adapter validates identities/URLs and uses the original stable server ID algorithm, preserving library associations and download history.
+Work DTOs contain `remoteID`, `title`, `authors`, `summary`, `tags`, nullable `languageCode`, native `kind` / `status` values, and nullable `coverURL` and optional `alternativeTitles`. Installment DTOs contain `remoteID`, `title`, nullable `number`, nullable ISO-8601 `publishedAt`, `format` (`epub`, `pdf`, `cbz`, or Suwayomi `remoteImageSequence`), `acquisitionURL`, and nullable `pageCount`. The native adapter validates identities/URLs and uses the original stable server ID algorithm, preserving library associations and download history.
 
-Native HTTP applies each connection’s endpoint policy and injects its credentials at its exact origin. Connector HTTP effects and returned resource URLs must use that configured origin. Native redirect handling removes credentials when leaving it. Runtime cookies, state and cache namespaces are separate per package/connection; package or connection removal revokes runtimes and cleans their namespaces. Credentials remain owned by the connection and are not deleted when its package is removed. Publication acquisition uses the existing native download queue and format validation.
+Native HTTP applies each connection’s endpoint policy and injects its credentials at its exact origin. Connector HTTP effects, acquisition and image-page URLs must use that configured origin. Public cover URLs may be cross-origin without receiving server credentials. Native redirect handling removes credentials when leaving it. Runtime cookies, state and cache namespaces are separate per package/connection; package or connection removal revokes runtimes and cleans their namespaces. Credentials remain owned by the connection and are not deleted when its package is removed. Publication acquisition uses the existing native download queue and format validation.
 
 ### Optional LNORI progressive publication descriptor (API 2.0)
 
