@@ -61,6 +61,39 @@ for(const [name,host] of providers){
   await assert.rejects(loaded.extension.imagePages({workId:'manga/other',installmentId:chapters[0].installmentId}));
   await assert.rejects(loaded.extension.imagePageContent({url:'https://s1.mkklcdnv6temp.com.evil.test/1.webp'}));
  });
+ test(`${name}: chapter images recover through advertised CDNs and backups`,async()=>{
+  const primary='https://s1.mkklcdnv6temp.com/primary/';
+  const secondary='https://s2.mkklcdnv6temp.com/secondary/';
+  const backup='https://s3.mkklcdnv6temp.com/backup/';
+  const loaded=await loadContentExtension(main,r=>r.imageResource
+   ? r.url.startsWith(backup)?runtimeResponse({url:r.url,mimeType:'image/webp',bytes:MINIMAL_WEBP_BYTES}):runtimeResponse({url:r.url,status:404})
+   :response(r,`<script>var cdns = ["${primary}","${secondary}"]; var backupImage = ["${backup}"]; var chapterImages = ["page.webp?token=fixture"];</script>`));
+  const pages=await loaded.extension.imagePages({workId:'manga/sample',installmentId:'manga/sample|chapter/sample/one'});
+  assert.equal(pages.pages[0],primary+'page.webp?token=fixture');
+  const image=await loaded.extension.imagePageContent({url:pages.pages[0]});
+  assert.equal(image.mimeType,'image/webp');
+  assert.deepEqual(loaded.calls.filter(r=>r.imageResource).map(r=>r.url),[primary,secondary,backup].map(base=>base+'page.webp?token=fixture'));
+ });
+ test(`${name}: known mirrors recover cached page URLs without a fresh manifest`,async()=>{
+  const loaded=await loadContentExtension(main,r=>r.url.includes('img-r2.')?runtimeResponse({url:r.url,mimeType:'image/webp',bytes:MINIMAL_WEBP_BYTES}):runtimeResponse({url:r.url,status:503}));
+  await loaded.extension.imagePageContent({url:'https://img-r1.2xstorage.com/pages/1.webp?token=fixture'});
+  assert.deepEqual(loaded.calls.map(r=>r.url),['https://img-r1.2xstorage.com/pages/1.webp?token=fixture','https://img-r2.2xstorage.com/pages/1.webp?token=fixture']);
+ });
+ test(`${name}: image fallback stops at rate limits, challenges and authorization failures`,async()=>{
+  for(const failure of [{status:429,headers:{'retry-after':'12'}},{status:403,headers:{'cf-mitigated':'challenge'}},{status:401}]) {
+   const loaded=await loadContentExtension(main,r=>runtimeResponse({url:r.url,...failure}));
+   await assert.rejects(loaded.extension.imagePageContent({url:'https://img-r1.2xstorage.com/pages/1.webp'}));
+   assert.equal(loaded.calls.length,1);
+  }
+ });
+ test(`${name}: mirror exhaustion is bounded and hostile advertised backups are rejected`,async()=>{
+  const exhausted=await loadContentExtension(main,r=>runtimeResponse({url:r.url,status:404}));
+  await assert.rejects(exhausted.extension.imagePageContent({url:'https://img-r1.2xstorage.com/pages/1.webp'}));
+  assert.equal(exhausted.calls.length,3);assert.equal(new Set(exhausted.calls.map(r=>r.url)).size,3);
+  const invalid=await loadContentExtension(main,r=>response(r,'<script>var cdns = ["https://s1.mkklcdnv6temp.com"]; var backupImage = ["https://evil.test"]; var chapterImages = ["1.webp"];</script>'));
+  await assert.rejects(invalid.extension.imagePages({workId:'manga/sample',installmentId:'manga/sample|chapter/sample/one'}));
+  assert.equal(invalid.calls.length,1);
+ });
  test(`${name}: HTML image layout and malformed pages`,async()=>{
   const loaded=await loadContentExtension(main,r=>response(r,'<nav>'+('<div><span>Unrelated navigation</span></div>'.repeat(5000))+'</nav><div class="container-chapter-reader"><img data-src="https://s1.mkklcdnv6temp.com/1.webp"><img src="https://s1.mkklcdnv6temp.com/2.webp"></div>'));
   const pages=await loaded.extension.imagePages({workId:'manga/sample',installmentId:'manga/sample|chapter/sample/one'});assert.equal(pages.pages.length,2);

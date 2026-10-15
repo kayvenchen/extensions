@@ -179,7 +179,7 @@
       "id": "MangaBat",
       "name": "MangaBat",
       "description": "English manga discovery, search, and chapter reading from www.mangabats.com.",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "icon": "icons/MangaBat.webp",
       "languages": [
         "en"
@@ -223,9 +223,9 @@
       "extension": {
         "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaBat/3.0.0/main.wasm",
-        "sha256": "40cc26e4532f6de0704fbf5a8e3360a3dff7e4f5384609f404cdf498a14a1993",
-        "size": 2243081,
+        "moduleURL": "sources/MangaBat/3.0.1/main.wasm",
+        "sha256": "587917d10f6c47b42bed876a151e14edd72bbc8ca29f013a27cd42fbfbb4f397",
+        "size": 2262315,
         "allowedHTTPSHosts": [
           "www.mangabats.com",
           "*.mkklcdnv6temp.com",
@@ -242,7 +242,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "40cc26e4532f6de0704fbf5a8e3360a3dff7e4f5384609f404cdf498a14a1993",
+      "moduleSHA256": "587917d10f6c47b42bed876a151e14edd72bbc8ca29f013a27cd42fbfbb4f397",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -420,7 +420,7 @@
       "id": "MangaKakalot",
       "name": "MangaKakalot",
       "description": "English manga discovery, search, and chapter reading from www.mangakakalot.gg.",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "icon": "icons/MangaKakalot.svg",
       "languages": [
         "en"
@@ -464,9 +464,9 @@
       "extension": {
         "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaKakalot/3.0.0/main.wasm",
-        "sha256": "662c65657519f2509980b8c0bb42fffa45f951951c8b0e3ad6fc111494a7899f",
-        "size": 2243078,
+        "moduleURL": "sources/MangaKakalot/3.0.1/main.wasm",
+        "sha256": "47d4d6320015b9a431cc04d6e278cbfa36b2753cbbb0a1ec7d97ea0a3d52c8cb",
+        "size": 2262312,
         "allowedHTTPSHosts": [
           "www.mangakakalot.gg",
           "*.mkklcdnv6temp.com",
@@ -483,7 +483,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "662c65657519f2509980b8c0bb42fffa45f951951c8b0e3ad6fc111494a7899f",
+      "moduleSHA256": "47d4d6320015b9a431cc04d6e278cbfa36b2753cbbb0a1ec7d97ea0a3d52c8cb",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -502,7 +502,7 @@
       "id": "MangaNato",
       "name": "MangaNato",
       "description": "English manga discovery, search, and chapter reading from www.manganato.gg.",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "icon": "icons/MangaNato.webp",
       "languages": [
         "en"
@@ -546,9 +546,9 @@
       "extension": {
         "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaNato/3.0.0/main.wasm",
-        "sha256": "52853f2ad6671260e0960cdeb6e11200ac02ee79ad7674300cd1e3ecfb75c3d9",
-        "size": 2243078,
+        "moduleURL": "sources/MangaNato/3.0.1/main.wasm",
+        "sha256": "f8ef94e389bccb6984597c4517299b01c24038a97d522694a30dbbe37370f751",
+        "size": 2262312,
         "allowedHTTPSHosts": [
           "www.manganato.gg",
           "*.mkklcdnv6temp.com",
@@ -565,7 +565,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "52853f2ad6671260e0960cdeb6e11200ac02ee79ad7674300cd1e3ecfb75c3d9",
+      "moduleSHA256": "f8ef94e389bccb6984597c4517299b01c24038a97d522694a30dbbe37370f751",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",

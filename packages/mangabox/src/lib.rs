@@ -3,7 +3,7 @@
 use manko_sdk::{content, error, page, text, Context, Operation, Result};
 use manko_site_support::{self as site, scraper::Html};
 use serde_json::{json, Value};
-use std::collections::HashSet;
+use std::{cell::RefCell, collections::{HashMap, HashSet, VecDeque}, sync::LazyLock};
 
 #[derive(Clone, Copy)]
 pub struct Provider {
@@ -25,6 +25,79 @@ const MEDIA_SUFFIXES: &[&str] = &[
     ".mkklcdnv4temp.com",
     ".mkklcdnv3temp.com",
 ];
+const IMAGE_MIRRORS: &[&str] = &["img-r1.2xstorage.com", "img-r2.2xstorage.com", "imgs-2.2xstorage.com"];
+const MAX_IMAGE_BASES: usize = 16;
+const MAX_REMEMBERED_PAGES: usize = 5000;
+static PAGE_ARRAYS: LazyLock<regex::Regex> = LazyLock::new(||
+    regex::Regex::new(r"(?s)\b(cdns|backupImage|chapterImages)\s*=\s*(\[[^;]*?\])").unwrap());
+#[derive(Default)]
+struct PageAlternatives {
+    pages: HashMap<String, Vec<String>>,
+    order: VecDeque<String>,
+}
+thread_local! {
+    static PAGE_ALTERNATIVES: RefCell<PageAlternatives> = RefCell::new(PageAlternatives::default());
+}
+fn remember_alternatives(primary: &str, alternatives: Vec<String>) {
+    PAGE_ALTERNATIVES.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if !cache.pages.contains_key(primary) { cache.order.push_back(primary.to_owned()); }
+        cache.pages.insert(primary.to_owned(), alternatives);
+        while cache.pages.len() > MAX_REMEMBERED_PAGES {
+            if let Some(old) = cache.order.pop_front() { cache.pages.remove(&old); }
+        }
+    });
+}
+fn can_try_image_alternative(error: &Value) -> bool {
+    matches!(text(&error["type"]), "notFound" | "serviceError" | "invalidResponse")
+        || (error["code"] == "nativeRequestFailed" && error["name"] == "URLError")
+}
+async fn image_with_fallback(context: &Context, provider: Provider, requested: &str) -> Result<Value> {
+    let primary = media(requested, provider.base)?;
+    let mut candidates = vec![primary.clone()];
+    candidates.extend(PAGE_ALTERNATIVES.with(|cache| cache.borrow().pages.get(&primary).cloned().unwrap_or_default()));
+    let parsed = url::Url::parse(&primary).map_err(|_| site::invalid())?;
+    if IMAGE_MIRRORS.contains(&parsed.host_str().unwrap_or_default()) {
+        for host in IMAGE_MIRRORS {
+            let mut mirror = parsed.clone();
+            mirror.set_host(Some(host)).map_err(|_| site::invalid())?;
+            candidates.push(media(mirror.as_str(), provider.base)?);
+        }
+    }
+    let mut seen = HashSet::new();
+    let mut failure = site::invalid();
+    for candidate in candidates.into_iter().filter(|value| seen.insert(value.clone())).take(MAX_IMAGE_BASES + IMAGE_MIRRORS.len()) {
+        let candidate = media(&candidate, provider.base)?;
+        let parsed = url::Url::parse(&candidate).map_err(|_| site::invalid())?;
+        match site::image(context, &candidate, provider.base, &[parsed.host_str().unwrap()], AGENT).await {
+            Ok(image) => return Ok(image),
+            Err(error) => {
+                // Only transport/content failures can use another CDN. Preserve
+                // verification, rate limits, authorization and cancellation.
+                if !can_try_image_alternative(&error) { return Err(error); }
+                failure = error;
+            }
+        }
+    }
+    Err(failure)
+}
+
+#[cfg(test)]
+mod image_fallback_tests {
+    use super::*;
+
+    #[test]
+    fn native_transport_errors_retry_but_cancellation_and_policy_errors_do_not() {
+        assert!(can_try_image_alternative(&json!({"code":"nativeRequestFailed","name":"URLError"})));
+        for value in [
+            json!({"code":"nativeRequestFailed","name":"CancellationError"}),
+            json!({"code":"nativeRequestFailed","name":"SourceError"}),
+            json!({"code":"cloudflareHandoff","name":"MankoExtensionRuntimeError"}),
+            json!({"type":"rateLimited"}),
+            json!({"type":"authenticationRequired"}),
+        ] { assert!(!can_try_image_alternative(&value)); }
+    }
+}
 fn media(value: &str, base: &str) -> Result<String> {
     let url = url::Url::parse(base)
         .unwrap()
@@ -364,30 +437,42 @@ async fn chapters(context: &Context, provider: Provider, id: &str, body: &str) -
 fn pages(body: &str, provider: Provider) -> Result<Vec<String>> {
     let mut result = Vec::new();
     let mut arrays = std::collections::HashMap::new();
-    let re =
-        regex::Regex::new(r"(?s)\b(cdns|backupImage|chapterImages)\s*=\s*(\[[^;]*?\])").unwrap();
     for script in site::blocks(body, "script") {
-        for values in re.captures_iter(script.body) {
+        for values in PAGE_ARRAYS.captures_iter(script.body) {
             let parsed: Vec<String> =
                 serde_json::from_str(&values[2]).map_err(|_| site::invalid())?;
             arrays.insert(values[1].to_owned(), parsed);
         }
     }
     if let Some(images) = arrays.get("chapterImages") {
-        let cdn = arrays
-            .get("cdns")
-            .and_then(|v| v.first())
-            .or_else(|| arrays.get("backupImage").and_then(|v| v.first()))
-            .ok_or_else(site::invalid)?;
+        let bases: Vec<_> = arrays.get("cdns").into_iter().flatten()
+            .chain(arrays.get("backupImage").into_iter().flatten()).collect();
+        if bases.is_empty() || bases.len() > MAX_IMAGE_BASES || images.len() > MAX_REMEMBERED_PAGES { return Err(site::invalid()); }
+        // Validate every advertised destination before remembering it.
+        let bases = bases.into_iter().map(|base| {
+            let base = media(base, provider.base)?;
+            let mut parsed = url::Url::parse(&base).map_err(|_| site::invalid())?;
+            if parsed.query().is_some() || parsed.fragment().is_some() { return Err(site::invalid()); }
+            if !parsed.path().ends_with('/') { parsed.set_path(&format!("{}/", parsed.path())); }
+            Ok(parsed)
+        }).collect::<Result<Vec<_>>>()?;
         for image in images {
-            result.push(media(
-                &format!(
-                    "{}/{}",
-                    cdn.trim_end_matches('/'),
-                    image.trim_start_matches('/')
-                ),
-                provider.base,
-            )?);
+            if image.is_empty() || image.len() > 2048 || image.contains('\\') || image.chars().any(char::is_control) { return Err(site::invalid()); }
+            let mut candidates = Vec::new();
+            let relative = if image.starts_with("https://") || image.starts_with("//") {
+                let absolute = media(image, provider.base)?;
+                let parsed = url::Url::parse(&absolute).map_err(|_| site::invalid())?;
+                let path = format!("{}{}", parsed.path().trim_start_matches('/'), parsed.query().map(|q| format!("?{q}")).unwrap_or_default());
+                candidates.push(absolute);
+                path
+            } else { image.trim_start_matches('/').to_owned() };
+            for base in &bases {
+                let candidate = media(&relative, base.as_str())?;
+                if !candidates.contains(&candidate) { candidates.push(candidate); }
+            }
+            let primary = candidates.remove(0);
+            remember_alternatives(&primary, candidates);
+            result.push(primary);
         }
     } else {
         // Parse only the reader fragment; navigation, chapter menus and comments
@@ -471,16 +556,7 @@ pub fn run(provider: Provider, context: Context, method: String, args: Value) ->
                 )
             }
             "imagePageContent" => {
-                let url = media(text(&args["url"]), provider.base)?;
-                let host = url::Url::parse(&url).unwrap();
-                site::image(
-                    &context,
-                    &url,
-                    provider.base,
-                    &[host.host_str().unwrap()],
-                    AGENT,
-                )
-                .await
+                image_with_fallback(&context, provider, text(&args["url"])).await
             }
             _ => Err(error("Unsupported operation", "unsupportedOperation")),
         }
