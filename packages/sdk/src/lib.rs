@@ -171,6 +171,13 @@ impl Context {
         )
         .await
     }
+    /// Requests account-scoped access through Manko. Tokens never enter WASM.
+    pub async fn authenticated_request(
+        &self, url: &str, method: &str, headers: Value, body: Option<Vec<u8>>,
+    ) -> Result<Value> {
+        self.call("http", json!({"url":url,"method":method,"headers":headers,
+            "bodyBase64":body.map(|bytes| STANDARD.encode(bytes)),"authenticated":true})).await
+    }
     pub async fn secure(&self, key: &str) -> Result<Value> {
         self.call("secureState", json!({"operation":"get","key":key}))
             .await
@@ -257,7 +264,7 @@ impl Runtime {
         let owner = text(&input["invocationID"]).to_owned();
         match text(&input["action"]) {
             "metadata" => {
-                return json!({"id":self.id,"kind":self.kind,"apiVersion":"2.0",
+                return json!({"id":self.id,"kind":self.kind,"apiVersion":"3.0",
                                        "imageRequestMode":"independent","cachePolicy":"metadata"})
             }
             "cancel" => {

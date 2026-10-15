@@ -10,17 +10,10 @@ async fn request(
     query: &[(&str, String)],
     form: Option<Vec<(String, String)>>,
 ) -> Result<Value> {
-    let token = context.secure("oauth_access_token").await?;
-    if text(&token).is_empty() {
-        return Err(error(
-            "Tracker authentication required",
-            "authenticationRequired",
-        ));
-    }
     let mut url = url::Url::parse(&format!("https://api.myanimelist.net/v2{path}")).unwrap();
     url.query_pairs_mut().extend_pairs(query);
     let mut headers =
-        json!({"Accept":"application/json","Authorization":format!("Bearer {}",text(&token))});
+        json!({"Accept":"application/json"});
     let body = form.map(|form| {
         headers["Content-Type"] = json!("application/x-www-form-urlencoded");
         url::form_urlencoded::Serializer::new(String::new())
@@ -29,7 +22,7 @@ async fn request(
             .into_bytes()
     });
     context
-        .request(url.as_str(), method, headers, body, false)
+        .authenticated_request(url.as_str(), method, headers, body)
         .await
 }
 

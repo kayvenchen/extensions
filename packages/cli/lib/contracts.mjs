@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
-export const API_VERSION = "2.0";
-export const SUPPORTED_API_VERSIONS = new Set(["2.0"]);
+export const API_VERSION = "3.0";
+export const SUPPORTED_API_VERSIONS = new Set(["3.0"]);
 
 export const repositoryCapabilities = new Set([
   "browse", "discover", "search", "filters", "details", "installments",
@@ -101,6 +101,43 @@ export async function assertExtensionPackage(directory, expectedKind, expectedID
   }
   assertStringArray(metadata.allowedHTTPSHosts, "allowedHTTPSHosts", undefined, { required: metadata.connectorKind === undefined });
   assert.ok(metadata.allowedHTTPSHosts.every(isAllowedHTTPSHost), "allowedHTTPSHosts must contain exact public lower-case hostnames or explicit *. subdomain patterns");
+  if (expectedKind === "tracker") {
+    assert.ok(metadata.accountPolicy?.requests?.length, "A native account policy is required");
+    const auth = metadata.accountPolicy.authentication;
+    assert.ok(["oauth2PKCE", "oauth2Implicit"].includes(auth?.mode));
+    assertNonemptyString(auth.authorizationURL, "authorizationURL");
+    if (auth.mode === "oauth2PKCE") assertNonemptyString(auth.tokenURL, "tokenURL");
+    for (const value of [auth.authorizationURL, auth.tokenURL].filter(Boolean)) {
+      const url = new URL(value);
+      assert.equal(url.protocol, "https:");
+      assert.ok(metadata.allowedHTTPSHosts.includes(url.hostname));
+      assert.ok(!url.username && !url.password && !url.search && !url.hash && (!url.port || url.port === "443"));
+    }
+    assert.equal(auth.callbackScheme, "manko");
+    const callback = new URL(auth.callbackURL);
+    assert.equal(callback.protocol, "manko:");
+    assert.equal(callback.host, "oauth");
+    assert.ok(!callback.username && !callback.password && !callback.search && !callback.hash);
+    assert.ok(metadata.accountPolicy.requests.length <= 32);
+    for (const rule of metadata.accountPolicy.requests) {
+      const origin = new URL(rule.origin);
+      assert.equal(origin.protocol, "https:");
+      assert.equal(origin.pathname, "/");
+      assert.ok(metadata.allowedHTTPSHosts.includes(origin.hostname));
+      assert.ok(!origin.username && !origin.password && !origin.search && !origin.hash && !origin.port);
+      assert.ok(rule.pathPrefix.startsWith("/") && !/[%;\\\x00-\x1f\x7f]/.test(rule.pathPrefix)
+        && !rule.pathPrefix.split("/").some(part => part === "." || part === ".."));
+      assertStringArray(rule.methods, "accountPolicy.methods", new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]), {required:true});
+      assertStringArray(rule.operations, "accountPolicy.operations", new Set(["trackerSearch", "progress", "progressBatch", "update", "collections"]), {required:true});
+      assert.ok(rule.methods.every(method => ["GET", "HEAD"].includes(method)) || rule.bodyKind === "graphqlQuery" ||
+        (rule.operations.length === 1 && rule.operations[0] === "update"), "Mutating requests must declare update access");
+      if (rule.bodyKind !== undefined) {
+        assert.ok(["graphqlQuery", "graphqlMutation"].includes(rule.bodyKind));
+        assert.deepEqual(rule.methods, ["POST"]);
+        if (rule.bodyKind === "graphqlMutation") assert.deepEqual(rule.operations, ["update"]);
+      }
+    }
+  }
   assertStringArray(metadata.authenticationModes, "authenticationModes", authenticationModes, { required: true });
   assert.ok(Array.isArray(metadata.developers) && metadata.developers.length > 0, "developers must not be empty");
   metadata.developers.forEach((developer, index) => assertNonemptyString(developer?.name, `developers[${index}].name`));

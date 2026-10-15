@@ -3,11 +3,11 @@
   "name": "OPDS",
   "description": "Connect to your own OPDS server. Manko manages connection details, credentials and downloads.",
   "kind": "content",
-  "apiVersion": "2.0",
+  "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-opds",
   "connectorKind": "opds",
-  "version": "0.1.0",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en"
@@ -52,6 +52,6 @@
       "User-configured servers only. Progress write-back is not implemented."
     ],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   }
 }

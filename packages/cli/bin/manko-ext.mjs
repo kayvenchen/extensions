@@ -56,6 +56,12 @@ async function createScaffold(entry) {
     apiVersion:API_VERSION,runtime:"wasm",crate,version:"0.1.0",language:"en",languages:["en"],
     contentRating:"SAFE",availability:"serviceUnavailable",capabilities:[],permissions:["network"],
     allowedHTTPSHosts:["blocked.manko.invalid"],authenticationModes:["none"],
+    ...(kind === "tracker" ? { accountPolicy: {
+      authentication: { mode:"oauth2PKCE", authorizationURL:"https://blocked.manko.invalid/authorize",
+        tokenURL:"https://blocked.manko.invalid/token", callbackScheme:"manko", callbackURL:"manko://oauth/fixture",
+        clientID:"configure-before-publishing", responseType:"code", scopes:[], pkceMethod:"S256" },
+      requests:[{origin:"https://blocked.manko.invalid",pathPrefix:"/api/",methods:["GET"],operations:["trackerSearch"]}]
+    }} : {}),
     developers:[{name:"manko Extension Contributors"}],iconFile:"icon.svg",license:"Apache-2.0"
   });
   await writeFile(join(directory,"Cargo.toml"), `[package]
@@ -153,7 +159,7 @@ async function check() {
   for (const [name, packEntries] of Object.entries(packs)) {
     try {
       const manifest = JSON.parse(await readFile(join(ROOT, "dist", name, "v1", "stable", "versioning.json"), "utf8"));
-      if (manifest.schemaVersion !== 2 || JSON.stringify(manifest.sources.map(source => source.id)) !== JSON.stringify(packEntries.map(entry => entry.id))) throw new Error(`Generated ${name} manifest does not match its packages`);
+      if (manifest.schemaVersion !== 3 || JSON.stringify(manifest.sources.map(source => source.id)) !== JSON.stringify(packEntries.map(entry => entry.id))) throw new Error(`Generated ${name} manifest does not match its packages`);
       if (manifest.sources.some(source => !EXTENSION_ROOTS[source.kind] || source.entryType !== "extension" || !source.extension)) throw new Error(`Invalid ${name} manifest`);
     } catch (error) { if (error.code !== "ENOENT") throw error; }
   }
@@ -190,7 +196,7 @@ async function buildArtifacts() {
   await rm(join(ROOT, "dist", "v1", "stable", "sources"), { recursive: true, force: true });
   await rm(join(ROOT, "dist", "v1", "stable", "icons"), { recursive: true, force: true });
   await writeJSON(join(ROOT, "dist", "v1", "stable", "versioning.json"), {
-    schemaVersion: 2,
+    schemaVersion: 3,
     repository: { id: "k800k.extensions", name: "Manko Legacy Catalog", description: "This mixed catalog is retired. Add Manko Official or Manko Community separately.", homepage: "https://k800k.github.io/extensions/", publisher: { name: "Manko Contributors" } },
     sources: []
   });
@@ -202,7 +208,7 @@ async function buildArtifacts() {
   return manifests;
 }
 
-async function buildCatalog(packName, entries, config) {
+async function buildCatalog(packName, entries, config, writeOutput = true) {
   const sourceRevision = process.env.MANKO_SOURCE_REVISION?.trim() || "main";
   if (!/^(?:main|[0-9a-f]{40})$/.test(sourceRevision)) {
     throw new Error("MANKO_SOURCE_REVISION must be main or a full Git commit SHA");
@@ -210,10 +216,10 @@ async function buildCatalog(packName, entries, config) {
   const output = join(ROOT, "dist", packName, "v1", "stable");
   const sourcesDirectory = join(output, "sources");
   const iconsDirectory = join(output, "icons");
-  await rm(sourcesDirectory, { recursive: true, force: true });
-  await rm(join(output, "packages"), { recursive: true, force: true });
-  await mkdir(sourcesDirectory, { recursive: true });
-  await mkdir(iconsDirectory, { recursive: true });
+  if (writeOutput) await rm(sourcesDirectory, { recursive: true, force: true });
+  if (writeOutput) await rm(join(output, "packages"), { recursive: true, force: true });
+  if (writeOutput) await mkdir(sourcesDirectory, { recursive: true });
+  if (writeOutput) await mkdir(iconsDirectory, { recursive: true });
   const sources = [];
   const catalog = [];
   const iconNames = new Set();
@@ -223,13 +229,13 @@ async function buildCatalog(packName, entries, config) {
     const script = await readFile(join(ROOT,"target","wasm32-unknown-unknown","release",`${metadata.crate.replaceAll("-","_")}.wasm`));
     validateModule(script,metadata);
     const moduleURL = `sources/${id}/${metadata.version}/main.wasm`;
-    await mkdir(dirname(join(output, moduleURL)), { recursive: true });
-    await writeFile(join(output, moduleURL), script);
+    if (writeOutput) await mkdir(dirname(join(output, moduleURL)), { recursive: true });
+    if (writeOutput) await writeFile(join(output, moduleURL), script);
     const iconExtension = extname(metadata.iconFile).toLowerCase();
     const iconName = `${id}${iconExtension}`;
     iconNames.add(iconName);
     const iconBytes = await readFile(join(directory, metadata.iconFile));
-    await writeFile(join(iconsDirectory, iconName), iconBytes);
+    if (writeOutput) await writeFile(join(iconsDirectory, iconName), iconBytes);
     const source = {
       id,
       name: metadata.name,
@@ -257,6 +263,7 @@ async function buildCatalog(packName, entries, config) {
         size: script.length,
         allowedHTTPSHosts: metadata.allowedHTTPSHosts,
         authenticationModes: metadata.authenticationModes,
+        ...(metadata.accountPolicy ? { accountPolicy: metadata.accountPolicy } : {}),
         ...(metadata.connectorKind ? { connectorKind: metadata.connectorKind } : {})
       }
     };
@@ -270,9 +277,9 @@ async function buildCatalog(packName, entries, config) {
       upstream: metadata.upstream || null
     });
   }
-  await pruneGeneratedFiles(iconsDirectory, iconNames, filename => /\.(?:svg|png|jpe?g|webp|ico)$/i.test(filename));
+  if (writeOutput) await pruneGeneratedFiles(iconsDirectory, iconNames, filename => /\.(?:svg|png|jpe?g|webp|ico)$/i.test(filename));
   const manifest = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     repository: {
       id: config.id,
       name: config.name,
@@ -283,17 +290,22 @@ async function buildCatalog(packName, entries, config) {
     },
     sources
   };
-  await writeJSON(join(output, "versioning.json"), manifest);
-  await writeJSON(join(output, "catalog.json"), { repositoryURL: config.repositoryURL, repository: { name: config.name }, sources: catalog });
-  console.log(`Bundled ${sources.length} deterministic WASM module${sources.length === 1 ? "" : "s"}.`);
+  if (writeOutput) await writeJSON(join(output, "versioning.json"), manifest);
+  if (writeOutput) await rm(join(output, "versioning.unsigned.json"), { force: true });
+  if (writeOutput) await writeJSON(join(output, "catalog.json"), { repositoryURL: config.repositoryURL, repository: { name: config.name }, sources: catalog });
+  if (writeOutput) console.log(`Bundled ${sources.length} deterministic WASM module${sources.length === 1 ? "" : "s"}.`);
   return manifest;
 }
 
 async function publish() {
   const configs = JSON.parse(await readFile(join(ROOT, "repository.config.json"), "utf8")).packs;
+  const packs = await catalogPacks(await extensionEntries());
   for (const packName of Object.keys(configs)) {
     const output = join(ROOT, "dist", packName, "v1", "stable");
     const current = JSON.parse(await readFile(join(output, "versioning.json")));
+    if (current.schemaVersion !== 3) throw new Error("A schema-3 catalog is required");
+    const rebuilt = await buildCatalog(packName, packs[packName], configs[packName], false);
+    if (JSON.stringify(current) !== JSON.stringify(rebuilt)) throw new Error("Catalog does not match the current build");
     for (const source of current.sources) {
       const bytes = await readFile(join(output, source.extension.moduleURL));
       if (bytes.length !== source.extension.size || sha256(bytes) !== source.extension.sha256) throw new Error(`Script hash mismatch: ${source.id}`);

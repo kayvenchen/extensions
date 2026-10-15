@@ -130,13 +130,62 @@ async fn catalog(context: &Context, html: &str, page: u64, search: bool) -> Resu
                     .query_pairs()
                     .any(|(k, v)| k == "page" && v.parse::<u64>().ok() == Some(page + 1))
         } else {
-            url.path() == format!("/directory/{}.html", page + 1)
+            url.path().starts_with("/directory/") && url.path().ends_with(&format!("/{}.html", page + 1))
         }
     });
     Ok(
         json!({"items":site::unique(items,"workId"),"metadata":if next{json!({"page":page+1})}else{Value::Null}}),
     )
 }
+async fn homepage(context: &Context) -> Result<Value> {
+    context.remember("mangafox:homepage:v1", Some(300.0), async {
+        let html = site::document(context, BASE, BASE, HOSTS, AGENT).await?;
+        let headings = regex::Regex::new(r#"<div class="manga-list-[1-4]-title">"#).unwrap();
+        let starts: Vec<_> = headings.find_iter(&html).map(|m| (m.start(), m.end())).collect();
+        let mut result = json!({});
+        for (index, (start, content)) in starts.iter().enumerate() {
+            let title = html[*content..].split('<').next().unwrap_or("").trim();
+            let key = match title {
+                "Hot Manga Releases" => "hot", "Being Read Right Now" => "reading",
+                "Popular Manga Ranking" => "ranking", "Recommended" => "recommended",
+                "New Manga Release" => "new", "Lastest Updates" | "Latest Updates" => "latest",
+                "Trending Manga" => "trending", _ => continue,
+            };
+            let end = starts.get(index + 1).map(|v| v.0).unwrap_or(html.len());
+            context.now().await?;
+            let document = Html::parse_fragment(&html[*start..end]);
+            let mut cards = Vec::new();
+            for anchor in document.select(&site::selector("a[href^='/manga/']")) {
+                let Ok(id) = work_path(anchor.value().attr("href").unwrap_or("")) else { continue; };
+                let title = anchor.value().attr("title").filter(|v| !v.is_empty()).map(str::to_owned).unwrap_or_else(|| site::plain(anchor));
+                if title.is_empty() { continue; }
+                let image = anchor.select(&site::selector("img[src]")).next().and_then(|v| v.value().attr("src"));
+                let mut card = site::card(&id, &title, "", "manga");
+                card["imageUrl"] = match image { Some(url) => json!(site::link(url, BASE, MEDIA)?), None => Value::Null };
+                cards.push(card);
+            }
+            result[key] = json!(site::unique(cards, "workId"));
+        }
+        if result.as_object().is_none_or(|v| v.is_empty()) { return Err(site::invalid()); }
+        Ok(result)
+    }, |value| {
+        for cards in value.as_object().ok_or_else(site::invalid)?.values() {
+            for card in cards.as_array().ok_or_else(site::invalid)? {
+                site::slug(text(&card["workId"]))?;
+                if !card["imageUrl"].is_null() { site::link(text(&card["imageUrl"]), BASE, MEDIA)?; }
+            }
+        }
+        Ok(())
+    }).await
+}
+
+fn filters() -> Value {
+    let mut value = manko_sdk::content::configuration("mangafox-search", "MangaFox", &[("genre", "Genre")], &[("default", "Site Order")], &["en"]);
+    value["fields"][0]["supportsExclusion"] = json!(false);
+    value["fields"][0]["maximumSelections"] = json!(1);
+    value
+}
+
 async fn parse_series(context: &Context, html: &str, id: &str) -> Result<Value> {
     // Details appear before the chapter list; parse the long chapter index as
     // individual anchors so large series remain within the guest's budget.
@@ -284,50 +333,52 @@ fn run(context: Context, method: String, args: Value) -> Operation {
         match method.as_str() {
             "initialize" | "invalidateCache" => Ok(Value::Null),
             "settings" => Ok(json!({"id":"settings","title":"MangaFox","fields":[]})),
-            "discoverSections" => Ok(json!([{"id":"directory","title":"Popular Manga","type":0}])),
-            "searchFilters" => Ok(manko_sdk::content::configuration(
-                "mangafox-search",
-                "MangaFox",
-                &[],
-                &[("default", "Site Order")],
-                &["en"],
-            )),
-            "searchSuggestions" => Ok(json!([])),
+            "discoverSections" => Ok(json!([
+                {"id":"hot","title":"Hot Manga Releases","type":0,"presentation":"carousel"},
+                {"id":"reading","title":"Being Read Right Now","type":0,"presentation":"carousel"},
+                {"id":"ranking","title":"Popular Manga Ranking","type":0,"presentation":"carousel"},
+                {"id":"recommended","title":"Recommended","type":0,"presentation":"carousel"},
+                {"id":"new","title":"New Manga","type":0,"presentation":"carousel"},
+                {"id":"trending","title":"Trending Manga","type":0,"presentation":"carousel"},
+                {"id":"directory","title":"All Manga","type":0,"presentation":"carousel"},
+                {"id":"latest","title":"Latest Updates","type":0,"presentation":"latestGallery"}
+            ])),
+            "searchFilters" => Ok(filters()),
+            "searchSuggestions" => Ok(manko_sdk::content::suggestions(&args, ["action", "comedy", "drama", "fantasy", "romance", "school-life", "supernatural", "shoujo", "shounen"].into_iter()
+                .filter(|genre| genre.contains(&text(&args["query"]).to_lowercase()))
+                .map(|genre| json!({"fieldID":"genre","value":genre,"title":genre.replace('-', " ")})).collect())),
             "search" | "discover" => {
-                manko_sdk::content::validate_search(
-                    &manko_sdk::content::configuration(
-                        "mangafox-search",
-                        "MangaFox",
-                        &[],
-                        &[("default", "Site Order")],
-                        &["en"],
-                    ),
-                    &args,
-                )?;
-                if method == "discover"
-                    && args["sectionId"]
-                        .as_str()
-                        .or(args["section"]["id"].as_str())
-                        .is_some_and(|s| s != "directory")
-                {
-                    return Err(error("Unknown discovery section", "invalidSection"));
+                manko_sdk::content::validate_search(&filters(), &args)?;
+                let section = args["sectionId"].as_str().or(args["section"]["id"].as_str()).unwrap_or("directory");
+                if method == "discover" && section != "directory" {
+                    if !matches!(section, "hot" | "reading" | "ranking" | "recommended" | "new" | "trending" | "latest") {
+                        return Err(error("Unknown discovery section", "invalidSection"));
+                    }
+                    let page = page(&args, 100_000)?;
+                    let data = homepage(&context).await?;
+                    let items = data[section].as_array().ok_or_else(site::invalid)?;
+                    let start = (page as usize - 1) * 25;
+                    return Ok(json!({"items":items.iter().skip(start).take(25).collect::<Vec<_>>(),
+                        "metadata":if start + 25 < items.len() { json!({"page":page+1}) } else { Value::Null }}));
                 }
                 let page = page(&args, 100_000)?;
                 let query = text(&args["query"]).trim();
                 if query.len() > 500 {
                     return Err(error("Search query is too long", "invalidSearchTerm"));
                 }
+                let genres: Vec<_> = args["selections"].as_array().into_iter().flatten().filter(|v| v["fieldID"] == "genre").collect();
+                if genres.len() > 1 || (!genres.is_empty() && !query.is_empty()) {
+                    return Err(error("Choose one genre or search by title", "invalidSearchTerm"));
+                }
+                let genre = genres.first().map(|v| site::slug(text(&v["value"]))).transpose()?;
                 let search = method == "search" && !query.is_empty();
                 let url = if search {
                     let mut url = url::Url::parse(&format!("{BASE}search")).unwrap();
-                    url.query_pairs_mut()
-                        .append_pair("title", query)
-                        .append_pair("page", &page.to_string());
+                    url.query_pairs_mut().append_pair("title", query).append_pair("page", &page.to_string());
                     url.to_string()
-                } else if page == 1 {
-                    format!("{BASE}directory/")
                 } else {
-                    format!("{BASE}directory/{page}.html")
+                    let directory = genre.map(|v| format!("directory/{v}/")).unwrap_or_else(|| "directory/".to_owned());
+                    if page == 1 { format!("{BASE}{directory}") } else { format!("{BASE}{directory}{page}.html") }
                 };
                 context
                     .remember(

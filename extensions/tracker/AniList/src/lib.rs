@@ -14,27 +14,13 @@ async fn graphql(
     variables: Value,
     authenticated: bool,
 ) -> Result<Value> {
-    let mut headers = json!({"Accept":"application/json","Content-Type":"application/json"});
-    if authenticated {
-        let token = context.secure("oauth_access_token").await?;
-        if text(&token).is_empty() {
-            return Err(error(
-                "Tracker authentication required",
-                "authenticationRequired",
-            ));
-        }
-        headers["Authorization"] = json!(format!("Bearer {}", text(&token)));
-    }
+    let headers = json!({"Accept":"application/json","Content-Type":"application/json"});
     let body = serde_json::to_vec(&json!({"query":query,"variables":variables})).unwrap();
-    let response = context
-        .request(
-            "https://graphql.anilist.co",
-            "POST",
-            headers,
-            Some(body),
-            false,
-        )
-        .await?;
+    let response = if authenticated {
+        context.authenticated_request("https://graphql.anilist.co", "POST", headers, Some(body)).await?
+    } else {
+        context.request("https://graphql.anilist.co", "POST", headers, Some(body), false).await?
+    };
     if !(200..300).contains(&manko_sdk::status(&response)) {
         return Err(error(
             format!("AniList request failed ({})", manko_sdk::status(&response)),

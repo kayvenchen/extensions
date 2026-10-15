@@ -1,6 +1,6 @@
 # manko Extensions
 
-Native WebAssembly Extension API 2.0 modules, a shared Rust SDK, the manko-ext publishing CLI, and the documentation website.
+Native WebAssembly Extension API 3.0 modules, a shared Rust SDK, the manko-ext publishing CLI, and the documentation website.
 
 Two independent repositories are published from this workspace:
 
@@ -38,3 +38,5 @@ See [ABI.md](ABI.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECU
 ## Server connectors
 
 All four server integrations run as downloaded WASM packages. Native Manko code owns endpoint policy, credentials and publication/image transfers. Install a connector, then add a connection from Extensions. Each connection has its own identity and state namespace. No server, repository, package or tracker account is preinstalled.
+
+API 3 catalogs use ordinary schema-3 JSON and require no publisher signing keys. Run `npm run bundle` and `npm run publish:dry-run` before publishing. Users review website and account permissions in Manko. See [Security](SECURITY.md#catalogs-and-publishing).

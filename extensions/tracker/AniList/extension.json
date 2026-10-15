@@ -3,8 +3,8 @@
   "name": "AniList",
   "description": "Track manga progress and lists with AniList.",
   "kind": "tracker",
-  "apiVersion": "2.0",
-  "version": "2.1.1",
+  "apiVersion": "3.0",
+  "version": "3.0.0",
   "language": "multi",
   "languages": [
     "multi"
@@ -20,7 +20,6 @@
   "permissions": [
     "authenticationHandoff",
     "network",
-    "secureState",
     "trackerUpdates"
   ],
   "allowedHTTPSHosts": [
@@ -50,6 +49,44 @@
   "crate": "manko-anilist",
   "compatibility": {
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
+  },
+  "accountPolicy": {
+    "authentication": {
+      "mode": "oauth2Implicit",
+      "authorizationURL": "https://anilist.co/api/v2/oauth/authorize",
+      "callbackScheme": "manko",
+      "callbackURL": "manko://oauth/anilist",
+      "clientIDInfoPlistKey": "MANKO_ANILIST_OAUTH_CLIENT_ID",
+      "responseType": "token",
+      "scopes": []
+    },
+    "requests": [
+      {
+        "origin": "https://graphql.anilist.co",
+        "pathPrefix": "/",
+        "methods": [
+          "POST"
+        ],
+        "operations": [
+          "trackerSearch",
+          "progress",
+          "progressBatch",
+          "collections"
+        ],
+        "bodyKind": "graphqlQuery"
+      },
+      {
+        "origin": "https://graphql.anilist.co",
+        "pathPrefix": "/",
+        "methods": [
+          "POST"
+        ],
+        "operations": [
+          "update"
+        ],
+        "bodyKind": "graphqlMutation"
+      }
+    ]
   }
 }

@@ -8,7 +8,7 @@
       "id": "HitomiLA",
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
-      "version": "2.0.7",
+      "version": "3.0.0",
       "icon": "icons/HitomiLA.png",
       "languages": [
         "en",
@@ -60,15 +60,16 @@
         "values": [
           "network",
           "rateLimiting",
-          "redactedLogging"
+          "redactedLogging",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/HitomiLA/2.0.7/main.wasm",
-        "sha256": "faf5b74759962980eb0a482b02ad8cf922483017db40270a317cc8b4b035d36f",
-        "size": 1690190,
+        "moduleURL": "sources/HitomiLA/3.0.0/main.wasm",
+        "sha256": "230802c34eee78b811769a7725edf2e39bdf9c325ae4f45c1fd5ec193f3f6afc",
+        "size": 2300585,
         "allowedHTTPSHosts": [
           "hitomi.la",
           "ltn.gold-usergeneratedcontent.net",
@@ -81,7 +82,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "faf5b74759962980eb0a482b02ad8cf922483017db40270a317cc8b4b035d36f",
+      "moduleSHA256": "230802c34eee78b811769a7725edf2e39bdf9c325ae4f45c1fd5ec193f3f6afc",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -90,7 +91,7 @@
         "note": null,
         "limitations": [],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": {
         "repository": "https://github.com/Aidoku-Community/sources",
@@ -104,7 +105,7 @@
       "id": "LNori",
       "name": "LNORI",
       "description": "English light-novel discovery, series details, and XHTML volume reading from lnori.com.",
-      "version": "0.1.3",
+      "version": "3.0.0",
       "icon": "icons/LNori.svg",
       "languages": [
         "en"
@@ -140,15 +141,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/LNori/0.1.3/main.wasm",
-        "sha256": "a9b9d5222feb06174a99cfa81c447f6c5e845b1a352af102c7381749b1a749d9",
-        "size": 1249998,
+        "moduleURL": "sources/LNori/3.0.0/main.wasm",
+        "sha256": "a77d10965cfe9fd1f9dd0cee2559f44cc4a0ad2c0736271ce94399a8f6b36134",
+        "size": 1271208,
         "allowedHTTPSHosts": [
           "lnori.com",
           "cdn.lnori.com",
@@ -158,7 +160,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "a9b9d5222feb06174a99cfa81c447f6c5e845b1a352af102c7381749b1a749d9",
+      "moduleSHA256": "a77d10965cfe9fd1f9dd0cee2559f44cc4a0ad2c0736271ce94399a8f6b36134",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -169,7 +171,7 @@
           "Volume text is supported. Manko currently removes external illustrations when generating EPUBs."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     },
@@ -177,7 +179,7 @@
       "id": "MangaBat",
       "name": "MangaBat",
       "description": "English manga discovery, search, and chapter reading from www.mangabats.com.",
-      "version": "0.1.2",
+      "version": "3.0.0",
       "icon": "icons/MangaBat.webp",
       "languages": [
         "en"
@@ -214,15 +216,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaBat/0.1.2/main.wasm",
-        "sha256": "ddd2752a35a5eb107d774c41c6fd97f776b18a7d93359be7175bfbf5b6f8c03a",
-        "size": 2241608,
+        "moduleURL": "sources/MangaBat/3.0.0/main.wasm",
+        "sha256": "40cc26e4532f6de0704fbf5a8e3360a3dff7e4f5384609f404cdf498a14a1993",
+        "size": 2243081,
         "allowedHTTPSHosts": [
           "www.mangabats.com",
           "*.mkklcdnv6temp.com",
@@ -239,7 +242,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "ddd2752a35a5eb107d774c41c6fd97f776b18a7d93359be7175bfbf5b6f8c03a",
+      "moduleSHA256": "40cc26e4532f6de0704fbf5a8e3360a3dff7e4f5384609f404cdf498a14a1993",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -250,7 +253,7 @@
           "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     },
@@ -258,7 +261,7 @@
       "id": "MangaFire",
       "name": "MangaFire",
       "description": "Manga discovery, multilingual search, and image chapter reading from mangafire.to.",
-      "version": "0.1.2",
+      "version": "3.0.0",
       "icon": "icons/MangaFire.svg",
       "languages": [
         "en",
@@ -301,15 +304,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaFire/0.1.2/main.wasm",
-        "sha256": "8806ecba65031a09b00f4211a4507e4d86c9465f5eb2d3b2863a21b246dddc0b",
-        "size": 1044867,
+        "moduleURL": "sources/MangaFire/3.0.0/main.wasm",
+        "sha256": "76a6ce1d6c871567c3eebec17ee588204bd51b9b2f3979a1d708c645b490a182",
+        "size": 1046995,
         "allowedHTTPSHosts": [
           "mangafire.to",
           "*.mfcdn.nl",
@@ -321,7 +325,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "8806ecba65031a09b00f4211a4507e4d86c9465f5eb2d3b2863a21b246dddc0b",
+      "moduleSHA256": "76a6ce1d6c871567c3eebec17ee588204bd51b9b2f3979a1d708c645b490a182",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -332,7 +336,7 @@
           "Anonymous chapters only; account features and volume releases are not supported. MangaFire request signing and CDN changes may require an extension update."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     },
@@ -340,7 +344,7 @@
       "id": "MangaFox",
       "name": "MangaFox",
       "description": "Manga discovery, title search, and lazy image-page reading from fanfox.net.",
-      "version": "0.1.1",
+      "version": "3.0.0",
       "icon": "icons/MangaFox.ico",
       "languages": [
         "en"
@@ -376,15 +380,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaFox/0.1.1/main.wasm",
-        "sha256": "08b13986bbf95e7a1f6100bbe32f2b40f9ce96789dfe0c85228a47f7219bd237",
-        "size": 1208595,
+        "moduleURL": "sources/MangaFox/3.0.0/main.wasm",
+        "sha256": "cb851cc70bfac2dc2b17ff4071b5ed2fcc1a27a890e65724d5c4c66d5bcd8760",
+        "size": 2269057,
         "allowedHTTPSHosts": [
           "fanfox.net",
           "m.fanfox.net",
@@ -396,7 +401,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "08b13986bbf95e7a1f6100bbe32f2b40f9ce96789dfe0c85228a47f7219bd237",
+      "moduleSHA256": "cb851cc70bfac2dc2b17ff4071b5ed2fcc1a27a890e65724d5c4c66d5bcd8760",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -407,7 +412,7 @@
           "Uses the public mobile reader. Unexpected image CDN domains require an extension update."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     },
@@ -415,7 +420,7 @@
       "id": "MangaKakalot",
       "name": "MangaKakalot",
       "description": "English manga discovery, search, and chapter reading from www.mangakakalot.gg.",
-      "version": "0.1.2",
+      "version": "3.0.0",
       "icon": "icons/MangaKakalot.svg",
       "languages": [
         "en"
@@ -452,15 +457,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaKakalot/0.1.2/main.wasm",
-        "sha256": "fd12db1ca324fe08fcf11c3b691ca6f92140f9169bee283566242ae64aa59878",
-        "size": 2241605,
+        "moduleURL": "sources/MangaKakalot/3.0.0/main.wasm",
+        "sha256": "662c65657519f2509980b8c0bb42fffa45f951951c8b0e3ad6fc111494a7899f",
+        "size": 2243078,
         "allowedHTTPSHosts": [
           "www.mangakakalot.gg",
           "*.mkklcdnv6temp.com",
@@ -477,7 +483,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "fd12db1ca324fe08fcf11c3b691ca6f92140f9169bee283566242ae64aa59878",
+      "moduleSHA256": "662c65657519f2509980b8c0bb42fffa45f951951c8b0e3ad6fc111494a7899f",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -488,7 +494,7 @@
           "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     },
@@ -496,7 +502,7 @@
       "id": "MangaNato",
       "name": "MangaNato",
       "description": "English manga discovery, search, and chapter reading from www.manganato.gg.",
-      "version": "0.1.2",
+      "version": "3.0.0",
       "icon": "icons/MangaNato.webp",
       "languages": [
         "en"
@@ -533,15 +539,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MangaNato/0.1.2/main.wasm",
-        "sha256": "08ca50ca5900f2d26642ab4760b12e389f2ee35209c7117ba2f71c1e724d7bef",
-        "size": 2241605,
+        "moduleURL": "sources/MangaNato/3.0.0/main.wasm",
+        "sha256": "52853f2ad6671260e0960cdeb6e11200ac02ee79ad7674300cd1e3ecfb75c3d9",
+        "size": 2243078,
         "allowedHTTPSHosts": [
           "www.manganato.gg",
           "*.mkklcdnv6temp.com",
@@ -558,7 +565,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "08ca50ca5900f2d26642ab4760b12e389f2ee35209c7117ba2f71c1e724d7bef",
+      "moduleSHA256": "52853f2ad6671260e0960cdeb6e11200ac02ee79ad7674300cd1e3ecfb75c3d9",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -569,7 +576,7 @@
           "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     },
@@ -577,7 +584,7 @@
       "id": "NHentai",
       "name": "nHentai",
       "description": "Anonymous discovery, search, gallery details, and page reading for nhentai.net.",
-      "version": "2.0.2",
+      "version": "3.0.0",
       "icon": "icons/NHentai.svg",
       "languages": [
         "multi",
@@ -622,14 +629,15 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/NHentai/2.0.2/main.wasm",
-        "sha256": "566fe8ca66ffb7789f49d1d84755e8bf78898ccb2875a3540594e72e02f5b991",
+        "moduleURL": "sources/NHentai/3.0.0/main.wasm",
+        "sha256": "c148609aa12fc72b45a679caaeb383ccd874b4e30cc992fe93cf71e6f58786cf",
         "size": 517875,
         "allowedHTTPSHosts": [
           "nhentai.net",
@@ -640,7 +648,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "566fe8ca66ffb7789f49d1d84755e8bf78898ccb2875a3540594e72e02f5b991",
+      "moduleSHA256": "c148609aa12fc72b45a679caaeb383ccd874b4e30cc992fe93cf71e6f58786cf",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -649,7 +657,7 @@
         "note": null,
         "limitations": [],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": {
         "repository": "https://github.com/Aidoku-Community/sources",
@@ -663,7 +671,7 @@
       "id": "OmegaScans",
       "name": "Omega Scans",
       "description": "Comic discovery, search, and free chapter reading from omegascans.org.",
-      "version": "0.1.2",
+      "version": "3.0.0",
       "icon": "icons/OmegaScans.png",
       "languages": [
         "en"
@@ -700,15 +708,16 @@
           "cookies",
           "rateLimiting",
           "redactedLogging",
-          "challengeHandoff"
+          "challengeHandoff",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/OmegaScans/0.1.2/main.wasm",
-        "sha256": "7749b3d59bca3849eb05f4f882a8c3fe3123fab1febe201a23c06b7db5f63984",
-        "size": 2085680,
+        "moduleURL": "sources/OmegaScans/3.0.0/main.wasm",
+        "sha256": "ba808c5475ba04101724fc12843482c2a5f70df9f1c3390b2ea5c76f6c6fa7a5",
+        "size": 2087193,
         "allowedHTTPSHosts": [
           "omegascans.org",
           "api.omegascans.org",
@@ -718,7 +727,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "7749b3d59bca3849eb05f4f882a8c3fe3123fab1febe201a23c06b7db5f63984",
+      "moduleSHA256": "ba808c5475ba04101724fc12843482c2a5f70df9f1c3390b2ea5c76f6c6fa7a5",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -729,7 +738,7 @@
           "Anonymous free comic chapters only. Account login, coin purchases, and text novels are not supported."
         ],
         "runtime": "native-wasm",
-        "apiVersion": "2.0"
+        "apiVersion": "3.0"
       },
       "upstream": null
     }

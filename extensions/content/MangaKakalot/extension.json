@@ -3,10 +3,10 @@
   "name": "MangaKakalot",
   "description": "English manga discovery, search, and chapter reading from www.mangakakalot.gg.",
   "kind": "content",
-  "apiVersion": "2.0",
+  "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-mangakakalot",
-  "version": "0.1.2",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en"
@@ -30,7 +30,8 @@
     "cookies",
     "rateLimiting",
     "redactedLogging",
-    "challengeHandoff"
+    "challengeHandoff",
+    "state"
   ],
   "allowedHTTPSHosts": [
     "www.mangakakalot.gg",
@@ -64,6 +65,6 @@
       "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
     ],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   }
 }

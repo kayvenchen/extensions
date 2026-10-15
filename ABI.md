@@ -1,4 +1,4 @@
-# Extension ABI 2.0
+# Extension ABI 3.0
 
 Modules target wasm32-unknown-unknown, export memory, and have no imports, including WASI. Manko embeds WasmKit 0.4.1 with software memory checks and fuel metering on an isolated Swift actor.
 
@@ -22,7 +22,7 @@ Requests are JSON objects:
 {"action":"cancel","invocationID":"host-owned UUID"}
 ```
 
-Metadata returns id, kind (content or tracker), apiVersion (2.0), imageRequestMode (independent), and cachePolicy (metadata). All must match the catalog where specified.
+Metadata returns id, kind (content or tracker), apiVersion (3.0), imageRequestMode (independent), and cachePolicy (metadata). All must match the catalog where specified.
 
 Operations return {"ok":true,"value":...}, {"ok":false,"error":{"name":"...","message":"...","type":"..."}}, or {"pending":[{"id":"...","service":"http","arguments":{...}}]}. Effect IDs are unique within an invocation. There may be up to 64 outstanding effects; pending can be empty while prior effects are still running. The host resumes after each effect finishes. Manko replaces guest-supplied invocation/request owners with native identities. Cancellation drops guest futures and cancels owned native requests.
 
@@ -42,9 +42,9 @@ imagePageContents receives urls and requestIDs arrays (maximum four). Each dispa
 
 There is no page execution, JavaScript evaluation, native filesystem, direct network, worker or process service. WebKit is reserved for native visible authentication, Cloudflare verification and verified transport.
 
-Repository Schema V2 publishes extension.runtime = wasm, apiVersion = 2.0, moduleURL, sha256, size, allowedHTTPSHosts and authenticationModes. Legacy scriptURL metadata remains readable by Manko but cannot execute.
+Signed repository schema 3 publishes extension.runtime = wasm, apiVersion = 3.0, moduleURL, sha256, size, allowedHTTPSHosts, authenticationModes and the native account policy. Execution requires an installation grant for the reviewed publisher and permissions. Legacy API 1/2 metadata remains readable by Manko but cannot execute.
 
-### Optional tracker reading metadata (API 2.0)
+### Optional tracker reading metadata (API 3.0)
 
 Trackers may implement `trackingCapabilities`, returning `{ "supportsDateUpdates": true|false }`. Older modules may reject this operation; hosts then treat date writes as unsupported. `progress` may add `startDate` and `finishDate` as objects containing optional Gregorian `year`, `month`, `day`, and positive `totalChapters` / `totalVolumes` (null or zero means unknown).
 
@@ -52,7 +52,7 @@ Scores use the host’s 1–10 scale (fractional inbound scores remain fractiona
 
 ## User-owned server connector profile v1
 
-An API 2.0 content package may declare `connectorKind` (`opds`, `komga`, `kavita`, or `suwayomi`) in its local manifest and catalog extension payload. The guest retains the same WASM exports and must implement `connectorInfo`, returning `{ "kind": "komga", "version": 1 }`. The CLI and native staged installer validate this response. Initialization has no server side effects and must work before a connection exists. Older hosts cannot execute the configured connector operations; publish only with a connector-capable Manko release.
+An API 3.0 content package may declare `connectorKind` (`opds`, `komga`, `kavita`, or `suwayomi`) in its local manifest and catalog extension payload. The guest retains the same WASM exports and must implement `connectorInfo`, returning `{ "kind": "komga", "version": 1 }`. The CLI and native staged installer validate this response. Initialization has no server side effects and must work before a connection exists. Older hosts cannot execute the configured connector operations; publish only with a connector-capable Manko release.
 
 One installed package serves multiple native connection records. Connections retain their source ID, endpoint policy, Keychain account and non-secret settings. Every connection requires a matching installed connector. Disabled, removed or incompatible selected packages make that connection unavailable; they never silently switch implementation. Install or enable the selected connector to recover; production builds contain no built-in server implementation.
 
@@ -67,8 +67,12 @@ The host invokes `connector` with `{ operation, baseURL, options, ...arguments }
 
 Work DTOs contain `remoteID`, `title`, `authors`, `summary`, `tags`, nullable `languageCode`, native `kind` / `status` values, and nullable `coverURL` and optional `alternativeTitles`. Installment DTOs contain `remoteID`, `title`, nullable `number`, nullable ISO-8601 `publishedAt`, `format` (`epub`, `pdf`, `cbz`, or Suwayomi `remoteImageSequence`), `acquisitionURL`, and nullable `pageCount`. The native adapter validates identities/URLs and uses the original stable server ID algorithm, preserving library associations and download history.
 
-Native HTTP applies each connection’s endpoint policy and injects its credentials at its exact origin. Connector HTTP effects, acquisition and image-page URLs must use that configured origin. Public cover URLs may be cross-origin without receiving server credentials. Native redirect handling removes credentials when leaving it. Runtime cookies, state and cache namespaces are separate per package/connection; package or connection removal revokes runtimes and cleans their namespaces. Credentials remain owned by the connection and are not deleted when its package is removed. Publication acquisition uses the existing native download queue and format validation.
+Native HTTP applies each connection’s endpoint policy and injects its credentials at its exact origin. Connector HTTP effects, acquisition and image-page URLs must use that configured origin. Cover URLs and redirects must stay within that exact origin. Runtime cookies, state and cache namespaces are separate per package/connection; package or connection removal revokes runtimes and cleans their namespaces. Credentials remain owned by the connection and are not deleted when its package is removed. Publication acquisition uses the existing native download queue and format validation.
 
-### Optional LNORI progressive publication descriptor (API 2.0)
+### Optional LNORI progressive publication descriptor (API 3.0)
 
 LNORI 0.1.1 implements `publicationStream` through the existing invocation export. Arguments are `{ "installmentId": "<numeric-id>/<slug>", "workId": "<series-id>/<slug>" }`. It returns `{ "id", "workId", "url", "headers" }` without fetching the volume. The host validates the returned identities, reviewed HTTPS destination, and response's structured book/series metadata before presenting any text. Native transport applies the installed source's permissions, credentials, redirects, verification, pacing and cooldowns. This is an optional source-specific method; ABI exports and `publicationContent` remain unchanged. Older native hosts continue using `publicationContent`.
+
+## API 3 security contract
+
+See [SECURITY.md](SECURITY.md) for signed catalogs, destination grants, native account policies and migration. Raw native OAuth keys and browser cookies are unavailable to guest state services. `Context.authenticated_request` requests native credential attachment under the signed account policy; ordinary requests cannot supply Authorization or Cookie headers. Offline installation validation runs module metadata and connector introspection without network or storage effects.

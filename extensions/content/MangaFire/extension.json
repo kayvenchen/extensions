@@ -3,10 +3,10 @@
   "name": "MangaFire",
   "description": "Manga discovery, multilingual search, and image chapter reading from mangafire.to.",
   "kind": "content",
-  "apiVersion": "2.0",
+  "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-mangafire",
-  "version": "0.1.2",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en",
@@ -36,7 +36,8 @@
     "cookies",
     "rateLimiting",
     "redactedLogging",
-    "challengeHandoff"
+    "challengeHandoff",
+    "state"
   ],
   "allowedHTTPSHosts": [
     "mangafire.to",
@@ -65,6 +66,6 @@
       "Anonymous chapters only; account features and volume releases are not supported. MangaFire request signing and CDN changes may require an extension update."
     ],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   }
 }

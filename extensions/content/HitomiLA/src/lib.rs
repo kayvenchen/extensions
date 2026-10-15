@@ -1,6 +1,8 @@
 // Copyright 2026 manko Extension Contributors; SPDX-License-Identifier: Apache-2.0
 use base64::{engine::general_purpose::STANDARD, Engine};
 use manko_sdk::{content::*, *};
+use manko_site_support::{attr, field, link, plain, scraper::Html, selector};
+use percent_encoding::percent_decode_str;
 use regex::Regex;
 use serde::{
     de::{Error as _, MapAccess, SeqAccess, Visitor},
@@ -314,17 +316,154 @@ async fn gallery_data(context: &Context, id: &str) -> Result<(Value, Value)> {
 async fn gallery_text(context: &Context, id: &str) -> Result<String> {
     Ok(text(&gallery_data(context, id).await?.0).to_owned())
 }
+fn card_path(path: &str, expected: &str) -> Result<()> {
+    if !path.starts_with('/')
+        || path.starts_with("//")
+        || path.contains(['?', '#', '\\'])
+        || !(path == format!("/galleries/{expected}.html")
+            || path.ends_with(&format!("-{expected}.html")))
+    {
+        return Err(invalid("Gallery card identifier mismatch"));
+    }
+    Ok(())
+}
+fn card_share(value: &str, expected: &str) -> Result<url::Url> {
+    let share = link(value, "https://hitomi.la/", &["hitomi.la"])?;
+    let url = url::Url::parse(&share).map_err(|_| invalid("Invalid gallery link"))?;
+    card_path(url.path(), expected)?;
+    if url.query().is_some() || url.fragment().is_some() {
+        return Err(invalid("Invalid gallery link"));
+    }
+    Ok(url)
+}
+pub fn card_assignment(source: &str, expected: &str) -> Result<Value> {
+    // Parse the site's small card fragment, never the full gallery file list.
+    let document = Html::parse_fragment(source);
+    let title = field(&document, "h1 a");
+    let share_url = card_share(&attr(&document, "h1 a", "href"), expected)?;
+    if title.is_empty() {
+        return Err(invalid("Missing gallery card title"));
+    }
+    let source_set = attr(
+        &document,
+        ".dj-img1 source[type='image/avif']",
+        "data-srcset",
+    );
+    let thumbnail = source_set
+        .split(',')
+        .next()
+        .unwrap_or("")
+        .split_whitespace()
+        .next()
+        .unwrap_or("");
+    let thumbnail = if thumbnail.is_empty() {
+        attr(&document, ".dj-img1 img", "data-src")
+    } else {
+        thumbnail.to_owned()
+    };
+    let thumbnail = link(
+        &thumbnail,
+        "https://hitomi.la/",
+        &[
+            "tn.gold-usergeneratedcontent.net",
+            "atn.gold-usergeneratedcontent.net",
+        ],
+    )?;
+    let thumbnail = url::Url::parse(&thumbnail).map_err(|_| invalid("Invalid card cover"))?;
+    static COVER: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"^/(?:avifbigtn|webpbigtn)/([0-9a-f])/([0-9a-f]{2})/([0-9a-f]{64})\.(?:avif|webp)$",
+        )
+        .unwrap()
+    });
+    let captures = COVER
+        .captures(thumbnail.path())
+        .ok_or_else(|| invalid("Invalid card cover"))?;
+    let cover_hash = &captures[3];
+    if &captures[1] != &cover_hash[63..]
+        || &captures[2] != &cover_hash[61..63]
+        || thumbnail.query().is_some()
+        || thumbnail.fragment().is_some()
+    {
+        return Err(invalid("Invalid card cover hash path"));
+    }
+    let language_link = attr(&document, "a[href^='/index-']", "href");
+    let language = language_link
+        .strip_prefix("/index-")
+        .and_then(|s| s.strip_suffix(".html"))
+        .unwrap_or("unknown");
+    let language_name = field(&document, "a[href^='/index-']");
+    let mut gallery = json!({
+        "id":expected,"title":title,"galleryurl":share_url.path(),
+        "language":language,"language_localname":if language_name.is_empty() {language} else {&language_name},
+        "type":field(&document,"a[href^='/type/']"),
+        "files":[{"hash":cover_hash}],"date":field(&document,".date"),"tags":[],
+    });
+    for (group, key, query) in [
+        ("artists", "artist", ".artist-list a"),
+        ("groups", "group", "a[href^='/group/']"),
+        ("parodys", "parody", ".series-list a"),
+        ("characters", "character", "a[href^='/character/']"),
+    ] {
+        gallery[group] = json!(document
+            .select(&selector(query))
+            .map(|element| {
+                let mut value = serde_json::Map::new();
+                value.insert(key.into(), json!(plain(element)));
+                Value::Object(value)
+            })
+            .collect::<Vec<_>>());
+    }
+    for tag in document.select(&selector(".relatedtags a[href^='/tag/']")) {
+        let href = tag.value().attr("href").unwrap_or("");
+        let Some(encoded) = href
+            .strip_prefix("/tag/")
+            .and_then(|s| s.strip_suffix("-all.html"))
+        else {
+            continue;
+        };
+        let decoded = percent_decode_str(encoded)
+            .decode_utf8()
+            .map_err(|_| invalid("Invalid tag encoding"))?;
+        let (namespace, name) = decoded.split_once(':').unwrap_or(("tag", &decoded));
+        if name.trim().is_empty() {
+            continue;
+        }
+        let mut value = json!({"tag":name});
+        if matches!(namespace, "female" | "male") {
+            value[namespace] = json!(1);
+        }
+        gallery["tags"].as_array_mut().unwrap().push(value);
+    }
+    validate_gallery(&gallery, expected)?;
+    Ok(gallery)
+}
 async fn gallery_card(context: &Context, id: &str) -> Result<Value> {
     context
         .remember(
-            &format!("hitomi:gallery-card-v1:{id}"),
+            &format!("hitomi:gallery-card-v2:{id}"),
             Some(1800.0),
-            async { Ok(gallery_data(context, id).await?.1) },
+            async {
+                let response = request(
+                    context,
+                    &format!("{STATIC}/galleryblock/{id}.html"),
+                    None,
+                    false,
+                )
+                .await?;
+                if status(&response) == 404 {
+                    return Err(error("Gallery not found", "notFound"));
+                }
+                let source = String::from_utf8(bytes(&response)?)
+                    .map_err(|_| invalid("Invalid card text"))?;
+                card_assignment(&source, id)
+            },
             |value| {
                 validate_gallery(value, id)?;
                 if value["files"].as_array().map(Vec::len) != Some(1) {
                     return Err(invalid("Invalid cached gallery card"));
                 }
+                card_path(text(&value["galleryurl"]), id)?;
                 Ok(())
             },
         )
@@ -341,6 +480,9 @@ fn values(gallery: &Value, group: &str, key: &str) -> Vec<String> {
         .collect()
 }
 pub fn work(gallery: &Value) -> Result<Value> {
+    work_with_share(gallery, None)
+}
+fn work_with_share(gallery: &Value, validated_share: Option<String>) -> Result<Value> {
     let id = id(&gallery["id"])?;
     validate_gallery(gallery, &id)?;
     let hash = hash(&gallery["files"][0]["hash"])?;
@@ -387,8 +529,10 @@ pub fn work(gallery: &Value) -> Result<Value> {
     }
     let alternate = text(&gallery["japanese_title"]).trim();
     let primary = text(&gallery["title"]).trim();
-    let mut share = format!("https://hitomi.la/galleries/{id}.html");
-    if text(&gallery["galleryurl"]).starts_with('/') {
+    let mut share = validated_share
+        .clone()
+        .unwrap_or_else(|| format!("https://hitomi.la/galleries/{id}.html"));
+    if validated_share.is_none() && text(&gallery["galleryurl"]).starts_with('/') {
         share = https(
             url::Url::parse("https://hitomi.la")
                 .unwrap()
@@ -802,7 +946,10 @@ async fn cards(context: &Context, ids: &[u32]) -> Result<Vec<Value>> {
                     position,
                     Box::pin(async move {
                         let gallery = gallery_card(context, &id.to_string()).await?;
-                        work(&gallery)
+                        // The loader/cache validator checked this single-origin path.
+                        // Keep the exact validated share URL without reparsing it per card.
+                        let share = format!("https://hitomi.la{}", text(&gallery["galleryurl"]));
+                        work_with_share(&gallery, Some(share))
                     }),
                 ));
             }
@@ -1076,7 +1223,9 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         if offset > 0 {
             return Ok(json!({"items":[],"metadata":null}));
         }
-        return Ok(json!({"items":[work(&gallery(context,&json!(raw)).await?)?],"metadata":null}));
+        return Ok(
+            json!({"items":cards(context,&[raw.parse::<u32>().map_err(|_| error("Invalid gallery ID", "invalidIdentifier"))?]).await?,"metadata":null}),
+        );
     }
     let mut language = "english".to_owned();
     let mut positive = vec![];
@@ -1453,6 +1602,95 @@ mod tests {
         assert_eq!(nozomi(&[0, 0, 0, 1]).unwrap(), vec![1]);
         assert!(nozomi(&[0xff, 0xff, 0xff, 0xff]).is_err());
         assert!(decode_node(&[0, 0, 0, 17]).is_err());
+    }
+    #[test]
+    fn captured_cards_match_gallery_covers() {
+        for (id, html, metadata) in [
+            (
+                "4247333",
+                include_str!("../tests/fixtures/4247333-card.html"),
+                include_str!("../tests/fixtures/4247333-gallery.json"),
+            ),
+            (
+                "4247316",
+                include_str!("../tests/fixtures/4247316-card.html"),
+                include_str!("../tests/fixtures/4247316-gallery.json"),
+            ),
+        ] {
+            let gallery: Value = serde_json::from_str(metadata).unwrap();
+            let card = card_assignment(html, id).unwrap();
+            assert_eq!(card["title"], gallery["title"]);
+            assert_eq!(card["files"][0]["hash"], gallery["files"][0]["hash"]);
+            assert_eq!(
+                work(&card).unwrap()["coverURL"],
+                work(&gallery).unwrap()["coverURL"]
+            );
+            assert_eq!(card["language"], gallery["language"]);
+            assert!(card_assignment(html, "1").is_err());
+        }
+    }
+    #[test]
+    fn cards_handle_entities_optional_fields_and_reject_bad_identity_or_covers() {
+        let html = include_str!("../tests/fixtures/4247333-card.html");
+        let start = html.find("<h1").unwrap();
+        let end = html[start..].find("</h1>").unwrap() + start + 5;
+        let minimal = format!(
+            "{}<h1><a href='/galleries/4247333.html'>日本語 &amp; &#x1F431;</a></h1>",
+            &html[..start]
+        );
+        let card = card_assignment(&minimal, "4247333").unwrap();
+        assert_eq!(card["title"], "日本語 & 🐱");
+        assert_eq!(card["language"], "unknown");
+        assert_eq!(card["tags"], json!([]));
+        assert_eq!(card["files"].as_array().unwrap().len(), 1);
+        let metadata = card_assignment(
+            &format!(
+                "{minimal}{}",
+                r#"<div class="artist-list"><a>A &amp; B</a></div>
+                <a href="/group/sample-all.html">Sample group</a>
+                <div class="series-list"><a>Sample series</a></div>
+                <a href="/character/sample-all.html">Sample character</a>
+                <a href="/index-japanese.html">日本語</a>
+                <p class="date">2026-01-01 00:00:00+00</p>
+                <div class="relatedtags"><a href="/tag/male%3Asample-all.html">sample</a>
+                <a href="/tag/space%20travel-all.html">space travel</a></div>"#
+            ),
+            "4247333",
+        )
+        .unwrap();
+        assert_eq!(metadata["artists"][0]["artist"], "A & B");
+        assert_eq!(metadata["groups"][0]["group"], "Sample group");
+        assert_eq!(metadata["parodys"][0]["parody"], "Sample series");
+        assert_eq!(metadata["characters"][0]["character"], "Sample character");
+        assert_eq!(metadata["language"], "japanese");
+        assert_eq!(metadata["date"], "2026-01-01 00:00:00+00");
+        assert_eq!(metadata["tags"][0], json!({"tag":"sample", "male":1}));
+        assert_eq!(metadata["tags"][1], json!({"tag":"space travel"}));
+        assert!(card_assignment(&html.replace("dj-img1", "wrong-image"), "4247333").is_err());
+        assert!(card_assignment(
+            &html.replace("tn.gold-usergeneratedcontent.net", "evil.example"),
+            "4247333"
+        )
+        .is_err());
+        assert!(
+            card_assignment(&format!("{}{}", &html[..start], &html[end..]), "4247333").is_err()
+        );
+        assert!(card_assignment("<html>Verification required</html>", "4247333").is_err());
+        for path in [
+            "//evil.example/a-1.html",
+            "/a-1.html?x=1",
+            "/a-1.html#x",
+            "/a-2.html",
+            "/a\\b-1.html",
+        ] {
+            assert!(card_path(path, "1").is_err());
+        }
+        let tags = card_assignment(html, "4247333").unwrap()["tags"].clone();
+        assert!(tags
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tag| tag["tag"] == "big breasts" && tag["female"] == 1));
     }
     #[test]
     fn catalog_projection_retains_only_the_cover_and_details_validate_all_files() {

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "repository": {
     "id": "manko.official",
     "name": "Manko Official",
@@ -15,7 +15,7 @@
       "id": "AniList",
       "name": "AniList",
       "description": "Track manga progress and lists with AniList.",
-      "version": "2.1.1",
+      "version": "3.0.0",
       "icon": "icons/AniList.svg",
       "languages": [
         "multi"
@@ -44,16 +44,15 @@
         "values": [
           "authenticationHandoff",
           "network",
-          "secureState",
           "trackerUpdates"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/AniList/2.1.1/main.wasm",
-        "sha256": "e7e0f632c3725ce76b58a1ceadb846e4c36f21db97b4d6954d245040728a6f18",
-        "size": 1251750,
+        "moduleURL": "sources/AniList/3.0.0/main.wasm",
+        "sha256": "4b0971219543bc1f0cd57db2ae4bad40576c4276d4dc07678943b2e5840b7882",
+        "size": 1251966,
         "allowedHTTPSHosts": [
           "anilist.co",
           "graphql.anilist.co",
@@ -61,14 +60,52 @@
         ],
         "authenticationModes": [
           "oauth2Implicit"
-        ]
+        ],
+        "accountPolicy": {
+          "authentication": {
+            "mode": "oauth2Implicit",
+            "authorizationURL": "https://anilist.co/api/v2/oauth/authorize",
+            "callbackScheme": "manko",
+            "callbackURL": "manko://oauth/anilist",
+            "clientIDInfoPlistKey": "MANKO_ANILIST_OAUTH_CLIENT_ID",
+            "responseType": "token",
+            "scopes": []
+          },
+          "requests": [
+            {
+              "origin": "https://graphql.anilist.co",
+              "pathPrefix": "/",
+              "methods": [
+                "POST"
+              ],
+              "operations": [
+                "trackerSearch",
+                "progress",
+                "progressBatch",
+                "collections"
+              ],
+              "bodyKind": "graphqlQuery"
+            },
+            {
+              "origin": "https://graphql.anilist.co",
+              "pathPrefix": "/",
+              "methods": [
+                "POST"
+              ],
+              "operations": [
+                "update"
+              ],
+              "bodyKind": "graphqlMutation"
+            }
+          ]
+        }
       }
     },
     {
       "id": "Kavita",
       "name": "Kavita",
       "description": "Connect to your own Kavita server. Manko manages connection details, credentials and downloads.",
-      "version": "0.1.0",
+      "version": "3.0.0",
       "icon": "icons/Kavita.svg",
       "languages": [
         "en"
@@ -99,14 +136,15 @@
       "permissions": {
         "values": [
           "network",
-          "redactedLogging"
+          "redactedLogging",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/Kavita/0.1.0/main.wasm",
-        "sha256": "459020952bfeb1ce59b6b71140aa5e7e6f06628026b34bc491c834f9e797bf66",
+        "moduleURL": "sources/Kavita/3.0.0/main.wasm",
+        "sha256": "689a2df0af85eb7639b34310cc83b46fd2aa4fc01f97f6936cb0baee8d23303d",
         "size": 447748,
         "allowedHTTPSHosts": [],
         "authenticationModes": [
@@ -122,7 +160,7 @@
       "id": "Komga",
       "name": "Komga",
       "description": "Connect to your own Komga servers. Connection details, credentials and publication downloads are managed by manko.",
-      "version": "0.1.1",
+      "version": "3.0.0",
       "icon": "icons/Komga.svg",
       "languages": [
         "en"
@@ -153,14 +191,15 @@
       "permissions": {
         "values": [
           "network",
-          "redactedLogging"
+          "redactedLogging",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/Komga/0.1.1/main.wasm",
-        "sha256": "fe6afdeb651a23328e6a99da1a3753d00d31a3d418ee5c7829976132fd482f69",
+        "moduleURL": "sources/Komga/3.0.0/main.wasm",
+        "sha256": "e9dc3c5a895402cc15fb0dd80dfc3af4e03b3c07d40599f9e339792f7ab8a74a",
         "size": 434831,
         "allowedHTTPSHosts": [],
         "authenticationModes": [
@@ -176,7 +215,7 @@
       "id": "MyAnimeList",
       "name": "MyAnimeList",
       "description": "Track manga progress and lists with MyAnimeList.",
-      "version": "2.1.1",
+      "version": "3.0.0",
       "icon": "icons/MyAnimeList.svg",
       "languages": [
         "multi"
@@ -205,16 +244,15 @@
         "values": [
           "authenticationHandoff",
           "network",
-          "secureState",
           "trackerUpdates"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/MyAnimeList/2.1.1/main.wasm",
-        "sha256": "cd8fecfd5d5b8043f0a706e6fddb0d3eb212d26a6cad29f932199eaa0a3689f2",
-        "size": 431865,
+        "moduleURL": "sources/MyAnimeList/3.0.0/main.wasm",
+        "sha256": "1e24bea3ab9329fe9b564b3535f9e91b01fde7b99ea791ecfc5c469838d969d2",
+        "size": 429364,
         "allowedHTTPSHosts": [
           "api.myanimelist.net",
           "cdn.myanimelist.net",
@@ -222,14 +260,52 @@
         ],
         "authenticationModes": [
           "oauth2PKCE"
-        ]
+        ],
+        "accountPolicy": {
+          "authentication": {
+            "mode": "oauth2PKCE",
+            "authorizationURL": "https://myanimelist.net/v1/oauth2/authorize",
+            "callbackScheme": "manko",
+            "callbackURL": "manko://oauth/myanimelist",
+            "clientIDInfoPlistKey": "MANKO_MYANIMELIST_OAUTH_CLIENT_ID",
+            "responseType": "code",
+            "scopes": [],
+            "tokenURL": "https://myanimelist.net/v1/oauth2/token",
+            "pkceMethod": "plain"
+          },
+          "requests": [
+            {
+              "origin": "https://api.myanimelist.net",
+              "pathPrefix": "/v2/",
+              "methods": [
+                "GET"
+              ],
+              "operations": [
+                "trackerSearch",
+                "progress",
+                "progressBatch",
+                "collections"
+              ]
+            },
+            {
+              "origin": "https://api.myanimelist.net",
+              "pathPrefix": "/v2/",
+              "methods": [
+                "PUT"
+              ],
+              "operations": [
+                "update"
+              ]
+            }
+          ]
+        }
       }
     },
     {
       "id": "OPDS",
       "name": "OPDS",
       "description": "Connect to your own OPDS server. Manko manages connection details, credentials and downloads.",
-      "version": "0.1.0",
+      "version": "3.0.0",
       "icon": "icons/OPDS.svg",
       "languages": [
         "en"
@@ -265,10 +341,10 @@
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/OPDS/0.1.0/main.wasm",
-        "sha256": "d67fc81a8e80f7b58446672f47d4d1a3a1496eb653c3e3746060dd9c35f649aa",
+        "moduleURL": "sources/OPDS/3.0.0/main.wasm",
+        "sha256": "aa7d559b670e906080aac4dc2e0b3e5352cb6e6f8b7a35428bf08dd7a586f31a",
         "size": 551383,
         "allowedHTTPSHosts": [],
         "authenticationModes": [
@@ -284,7 +360,7 @@
       "id": "Suwayomi",
       "name": "Suwayomi",
       "description": "Connect to your own Suwayomi server. Manko manages connection details, credentials and downloads.",
-      "version": "0.1.0",
+      "version": "3.0.0",
       "icon": "icons/Suwayomi.svg",
       "languages": [
         "en"
@@ -316,14 +392,15 @@
       "permissions": {
         "values": [
           "network",
-          "redactedLogging"
+          "redactedLogging",
+          "state"
         ]
       },
       "extension": {
-        "apiVersion": "2.0",
+        "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/Suwayomi/0.1.0/main.wasm",
-        "sha256": "eb93f55deb81f6bae0b97dfd20940d5d0a20fae45cda42f2347f3f9b2694cadd",
+        "moduleURL": "sources/Suwayomi/3.0.0/main.wasm",
+        "sha256": "5a8234cde2ec286174234dde662419f7a8a6582a8d2e569587af93bd1d25aeec",
         "size": 438270,
         "allowedHTTPSHosts": [],
         "authenticationModes": [

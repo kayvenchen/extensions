@@ -3,11 +3,11 @@
   "name": "Suwayomi",
   "description": "Connect to your own Suwayomi server. Manko manages connection details, credentials and downloads.",
   "kind": "content",
-  "apiVersion": "2.0",
+  "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-suwayomi",
   "connectorKind": "suwayomi",
-  "version": "0.1.0",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en"
@@ -26,7 +26,8 @@
   ],
   "permissions": [
     "network",
-    "redactedLogging"
+    "redactedLogging",
+    "state"
   ],
   "allowedHTTPSHosts": [],
   "authenticationModes": [
@@ -52,6 +53,6 @@
       "User-configured servers only. Progress write-back is not implemented."
     ],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   }
 }

@@ -62,3 +62,11 @@ test("Omega reads decimal chapter numbers from names rather than hyphenated slug
  const loaded=await loadContentExtension(main,r=>new URL(r.url).pathname==='/chapter/query'?runtimeResponse({url:r.url,text:JSON.stringify({meta:{last_page:1},data:[{...chapter('chapter-24-5'),chapter_name:'Chapter 24.5'}]})}):responder(r));
  const chapters=await loaded.extension.installments({workId:'sample-comic'});assert.equal(chapters[0].number,24.5);
 });
+
+test('Omega latest updates follow chapter updates, separately from new series',async()=>{
+ const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});
+ for(const [section,sort] of [['latest','updated_at'],['new','created_at'],['popular','total_views']]){
+  await loaded.extension.discover({sectionId:section});
+  assert.equal(new URL(loaded.calls.at(-1).url).searchParams.get('orderBy'),sort);
+ }
+});

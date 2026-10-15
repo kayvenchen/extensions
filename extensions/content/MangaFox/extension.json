@@ -3,10 +3,10 @@
   "name": "MangaFox",
   "description": "Manga discovery, title search, and lazy image-page reading from fanfox.net.",
   "kind": "content",
-  "apiVersion": "2.0",
+  "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-mangafox",
-  "version": "0.1.1",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en"
@@ -29,7 +29,8 @@
     "cookies",
     "rateLimiting",
     "redactedLogging",
-    "challengeHandoff"
+    "challengeHandoff",
+    "state"
   ],
   "allowedHTTPSHosts": [
     "fanfox.net",
@@ -57,7 +58,7 @@
       "Uses the public mobile reader. Unexpected image CDN domains require an extension update."
     ],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   },
   "homepage": "https://fanfox.net"
 }

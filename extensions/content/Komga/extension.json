@@ -3,11 +3,11 @@
   "name": "Komga",
   "description": "Connect to your own Komga servers. Connection details, credentials and publication downloads are managed by manko.",
   "kind": "content",
-  "apiVersion": "2.0",
+  "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-komga",
   "connectorKind": "komga",
-  "version": "0.1.1",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en"
@@ -25,7 +25,8 @@
   ],
   "permissions": [
     "network",
-    "redactedLogging"
+    "redactedLogging",
+    "state"
   ],
   "allowedHTTPSHosts": [],
   "authenticationModes": [
@@ -51,6 +52,6 @@
       "User-owned servers only. Progress write-back is not implemented."
     ],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   }
 }

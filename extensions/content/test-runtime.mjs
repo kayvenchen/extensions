@@ -37,7 +37,12 @@ async function loadExtension(mainPath, responder, kind, options = {}) {
   async function service({service,arguments:args},owner) {
     switch(service) {
     case "http": {
-      const request={...args};
+      const request={...args, headers:{...args.headers}};
+      if (args.authenticated) {
+        const token=secureState.get("oauth_access_token");
+        if (!token) throw new Error("Tracker authentication required");
+        request.headers.Authorization="Bearer "+token;
+      }
       if (args.bodyBase64) {
         const bytes=Buffer.from(args.bodyBase64,"base64");
         if(kind==="tracker") request.body=bytes.toString();
@@ -50,6 +55,7 @@ async function loadExtension(mainPath, responder, kind, options = {}) {
       return response;
     }
     case "state": case "secureState": {
+      if (args.key.startsWith("oauth_") || args.key.startsWith("__native_") || args.key === "cookie_store_cookies") throw new Error("Reserved native state");
       const store=service==="state"?state:secureState;
       if(args.operation==="get") return store.get(args.key) ?? null;
       if(args.operation==="set") store.set(args.key,args.value);

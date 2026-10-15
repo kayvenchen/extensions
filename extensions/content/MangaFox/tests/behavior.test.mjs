@@ -1,22 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 import test from "node:test";
 import assert from "node:assert/strict";
 import {resolve} from "node:path";
 import {loadContentExtension,runtimeResponse,metadataCacheFixture,MINIMAL_WEBP_BYTES} from "../../test-runtime.mjs";
 const main=resolve(import.meta.dirname,"../main.wasm");
-const row='<li><a href="/manga/sample_manga/" title="Sample &amp; Story"><img src="//fmcdn.mfcdn.net/store/cover.jpg?token=public&amp;ttl=1799999999"></a></li>';
-function catalog(search,page){return `<ul class="manga-list-${search?4:1}-list line">${page===1?row+row:''}</ul><div class="pager-list-left">${page===1?`<a href="${search?'/search?page=2&amp;title=sample':'/directory/2.html'}">2</a>`:''}</div>`;}
-const series=`<img class="detail-info-cover-img" src="//fmcdn.mfcdn.net/store/cover.jpg"><span class="detail-info-right-title-font">Sample Story</span><span class="detail-info-right-title-tip">Ongoing</span><p class="detail-info-right-say"><a>Sample Author</a></p><p class="fullcontent">Full synopsis</p><div id="chapterlist"><a href="/manga/sample_manga/v01/c001/1.html" title="Chapter 1">Chapter 1</a><a href="/manga/sample_manga/v01/c001/1.html">Chapter 1 repeated</a><a href="/manga/sample_manga/c002.5/1.html">Chapter 2.5</a></div><a href="/manga/recommended/c001/1.html">Recommended Comic</a>`;
-function reader(page){return `<div id="viewer"><a><img id="image" src="//zjcdn.mangafox.me/store/${page}.webp?token=public&amp;ttl=1799999999"></a><img style="display:none" src="//evil.test/preload.jpg"></div><select class="mangaread-page">${[1,2,3].map(i=>`<option value="//m.fanfox.net/manga/sample_manga/v01/c001/${i}.html">${i}</option>`).join('')}</select>`;}
-function responder(request){const url=new URL(request.url);let html;
- if(url.pathname.startsWith('/directory'))html=catalog(false,url.pathname==='/directory/'?1:2);
- else if(url.pathname==='/search')html=catalog(true,Number(url.searchParams.get('page')));
- else if(url.pathname==='/manga/sample_manga/')html=series;
- else if(url.hostname==='m.fanfox.net')html=reader(Number(url.pathname.split('/').at(-1).replace('.html','')));
- else if(request.imageResource)return runtimeResponse({url:request.url,mimeType:'image/webp',bytes:MINIMAL_WEBP_BYTES});
- else throw new Error(`Unexpected ${request.url}`);
- return runtimeResponse({url:request.url,text:html});
-}
+import { row, catalog, series, reader, responder } from "./fixtures.mjs";
 test("MangaFox preserves catalog identities, pagination, entities and cache reuse",async()=>{
  const cache=metadataCacheFixture();const loaded=await loadContentExtension(main,responder,{cache});
  const first=await loaded.extension.discover({sectionId:'directory'});assert.equal(first.items.length,1);assert.equal(first.items[0].workId,'sample_manga');assert.equal(first.items[0].title,'Sample & Story');assert.equal(first.metadata.page,2);
@@ -45,4 +32,25 @@ test("MangaFox long chapter indexes retain order, metadata and decimal identitie
  const loaded=await loadContentExtension(main,r=>runtimeResponse({url:r.url,text:largeSeries}),{cache:metadataCacheFixture()});
  const chapters=await loaded.extension.installments({workId:'sample_manga'});assert.equal(chapters.length,1230);assert.equal(chapters[0].number,1230);assert.equal(chapters.at(-1).number,1);assert.equal(chapters[0].title,'Chapter 1230 & title');
  await loaded.extension.installments({workId:'sample_manga'});assert.equal(loaded.calls.length,1);
+});
+
+test("MangaFox mirrors every homepage shelf without duplicate requests or duplicate cards",async()=>{
+ const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});
+ const sections=await loaded.extension.discoverSections();
+ assert.deepEqual(sections.map(s=>s.id),['hot','reading','ranking','recommended','new','trending','directory','latest']);
+ for(const section of sections.filter(s=>s.id!=='directory')) {
+  const page=await loaded.extension.discover({sectionId:section.id});
+  assert.deepEqual(page.items.map(v=>v.workId),['sample_manga']);assert.equal(page.metadata,null);
+ }
+ assert.equal(loaded.calls.length,1);
+ await assert.rejects(loaded.extension.discover({sectionId:'unknown'}),{type:'invalidSection'});
+});
+
+test("MangaFox genres use the public directory and reject unsupported combinations",async()=>{
+ const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});
+ await loaded.extension.search({selections:[{fieldID:'genre',value:'action'}]});
+ assert.equal(new URL(loaded.calls[0].url).pathname,'/directory/action/');
+ await assert.rejects(loaded.extension.search({query:'sample',selections:[{fieldID:'genre',value:'action'}]}),{type:'invalidSearchTerm'});
+ const suggestions=await loaded.extension.searchSuggestions({fieldID:'genre',query:'fan'});
+ assert.deepEqual(suggestions.map(v=>v.value),['fantasy']);
 });

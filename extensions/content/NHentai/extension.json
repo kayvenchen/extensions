@@ -3,8 +3,8 @@
   "name": "nHentai",
   "description": "Anonymous discovery, search, gallery details, and page reading for nhentai.net.",
   "kind": "content",
-  "apiVersion": "2.0",
-  "version": "2.0.2",
+  "apiVersion": "3.0",
+  "version": "3.0.0",
   "language": "multi",
   "languages": [
     "multi",
@@ -36,7 +36,8 @@
     "cookies",
     "rateLimiting",
     "redactedLogging",
-    "challengeHandoff"
+    "challengeHandoff",
+    "state"
   ],
   "allowedHTTPSHosts": [
     "nhentai.net",
@@ -60,7 +61,7 @@
     "note": null,
     "limitations": [],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   },
   "upstream": {
     "repository": "https://github.com/Aidoku-Community/sources",

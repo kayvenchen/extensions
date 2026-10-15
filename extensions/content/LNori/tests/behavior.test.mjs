@@ -1,25 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 import test from "node:test";
 import assert from "node:assert/strict";
 import {resolve} from "node:path";
 import {loadContentExtension,runtimeResponse,metadataCacheFixture,MINIMAL_WEBP_BYTES} from "../../test-runtime.mjs";
 const main=resolve(import.meta.dirname,"../main.wasm");
-const workID="1/sample-novel",bookID="11/sample-novel-volume-1";
-function card(id,title=`Sample ${id}`){return `<article class="card" data-id="${id}" data-t="${title}" data-a="Sample Author" data-tags="fantasy,adventure" data-d="2026" data-v="2" data-rel="${100-id}"><figure><a href="/series/${id}/${id===1?'sample-novel':`sample-${id}`}" title="${title}"><img src="https://cdn.lnori.com/cover/${id}.webp"></a></figure></article>`;}
-const library=`<section id="grid">${Array.from({length:26},(_,i)=>card(i+1)).join('')}${card(1)}</section><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>`;
-const schema={name:"Sample & Story",url:`https://lnori.com/series/${workID}`,image:"https://cdn.lnori.com/cover/1.webp",author:{name:"Sample Author"},description:"A sample synopsis",hasPart:[{name:"Volume 1",position:"1",url:`https://lnori.com/book/${bookID}`},{name:"Volume 1",position:"1",url:`https://lnori.com/book/${bookID}`}]};
-const series=`<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
-const bookSchema={id:"11",additionalProperty:[{name:"series_id",value:"1"},{name:"series_slug",value:"sample-novel"}]};
-const book=`<script type="application/ld+json">${JSON.stringify(bookSchema)}</script><h1 id="book-title">Sample &amp; Story Vol. 1</h1><a href="/series/${workID}">Series</a><article class="content-body"><section id="chapter1"><h2>Chapter One</h2><p onclick="bad()">A &amp; B<script>bad()</script></p><picture><source srcset="https://img.lnori.com/11-01.jxl"><img src="https://img.lnori.com/11-01.jpg" onerror="bad()"></picture></section></article>`;
-function responder(request){
- const path=new URL(request.url).pathname;
- assert.equal(request.method,"GET");
- if(path==="/library")return runtimeResponse({url:request.url,text:library});
- if(path===`/series/${workID}`)return runtimeResponse({url:request.url,text:series});
- if(path===`/book/${bookID}`)return runtimeResponse({url:request.url,text:book});
- if(request.imageResource)return runtimeResponse({url:request.url,mimeType:"image/webp",bytes:MINIMAL_WEBP_BYTES});
- throw new Error(`Unexpected ${request.url}`);
-}
+import { workID, bookID, card, library, homepage, schema, series, bookSchema, book, responder } from "./fixtures.mjs";
 test("LNORI caches the complete catalog, pages unique series and filters locally",async()=>{
  const cache=metadataCacheFixture();const loaded=await loadContentExtension(main,responder,{cache});
  const first=await loaded.extension.discover({sectionId:"library"});
@@ -89,4 +73,35 @@ test("LNORI prefers displayed book artwork over promotional schema cards",async(
  const loaded=await loadContentExtension(main,r=>runtimeResponse({url:r.url,text:html}),{cache:metadataCacheFixture()});
  const detail=await loaded.extension.details(workID);
  assert.equal(detail.workInfo.thumbnailUrl,'https://cdn.lnori.com/cover/1.webp');
+});
+
+test("LNORI homepage shelves preserve source order, paginate, and share one cached request", async () => {
+ const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});
+ const sections=await loaded.extension.discoverSections();
+ assert.deepEqual(sections.map(s=>s.id),['featured','seasonal','popular','library']);
+ assert.deepEqual((await loaded.extension.discover({sectionId:'featured'})).items.map(v=>v.workId),['1/sample-novel','2/sample-2','3/sample-3','4/sample-4','5/sample-5']);
+ assert.deepEqual((await loaded.extension.discover({sectionId:'seasonal'})).items.map(v=>v.workId),['3/sample-3','1/sample-novel']);
+ const popular=await loaded.extension.discover({sectionId:'popular'});
+ assert.equal(popular.items.length,25);assert.deepEqual(popular.metadata,{page:2});
+ assert.equal((await loaded.extension.discover({sectionId:'popular',metadata:popular.metadata})).items.length,1);
+ assert.equal(loaded.calls.length,1,'shelves must reuse the homepage response');
+ await assert.rejects(loaded.extension.discover({sectionId:'unknown'}),{type:'invalidSection'});
+});
+
+test("LNORI missing homepage sections fail explicitly and failed pages are retryable", async () => {
+ let failed=true;const loaded=await loadContentExtension(main,r=>failed?runtimeResponse({url:r.url,text:'<html>Unavailable</html>'}):responder(r),{cache:metadataCacheFixture()});
+ await assert.rejects(loaded.extension.discover({sectionId:'featured'}),{type:'invalidResponse'});
+ failed=false;assert.equal((await loaded.extension.discover({sectionId:'featured'})).items.length,5);
+});
+
+
+test("LNORI homepage streaming preserves nested cards, entities, and text fallback", async () => {
+ const html=homepage.replace('data-title="Original Journey 1"','data-title="Original &amp; Journey > 1"')
+  .replace('></div>','><div><span>Decorative content</span></div></div>')
+  .replace('alt="Original Journey 3"','alt=""').replace('</a>','<h3>Third &amp; Journey</h3></a>');
+ const loaded=await loadContentExtension(main,r=>runtimeResponse({url:r.url,text:html}),{cache:metadataCacheFixture()});
+ const featured=await loaded.extension.discover({sectionId:'featured'});
+ assert.equal(featured.items.length,5);assert.equal(featured.items[0].title,'Original & Journey > 1');
+ const seasonal=await loaded.extension.discover({sectionId:'seasonal'});
+ assert.equal(seasonal.items[0].title,'Third & Journey');assert.equal(loaded.calls.length,1);
 });

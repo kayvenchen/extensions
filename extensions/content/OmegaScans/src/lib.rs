@@ -127,7 +127,7 @@ fn run(context: Context, method: String, args: Value) -> Operation {
             "initialize" | "invalidateCache" => Ok(Value::Null),
             "settings" => Ok(json!({"id":"settings","title":"Omega Scans","fields":[]})),
             "discoverSections" => Ok(
-                json!([{"id":"latest","title":"Latest","type":0},{"id":"popular","title":"Popular","type":0}]),
+                json!([{"id":"popular","title":"Popular","type":0,"presentation":"carousel"},{"id":"new","title":"New Comics","type":0,"presentation":"carousel"},{"id":"latest","title":"Latest Comic Updates","type":0,"presentation":"latestGallery"}]),
             ),
             "searchFilters" => Ok(filters()),
             "searchSuggestions" => {
@@ -152,12 +152,14 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                     .as_str()
                     .or(args["section"]["id"].as_str())
                     .unwrap_or("latest");
-                if method == "discover" && !matches!(section, "latest" | "popular") {
+                if method == "discover" && !matches!(section, "latest" | "popular" | "new") {
                     return Err(error("Unknown discovery section", "invalidSection"));
                 }
                 let sort = args["sort"].as_str().unwrap_or(
                     if method == "discover" && section == "popular" {
                         "total_views"
+                    } else if method == "discover" && section == "latest" {
+                        "updated_at"
                     } else {
                         "created_at"
                     },

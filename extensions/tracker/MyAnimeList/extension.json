@@ -3,8 +3,8 @@
   "name": "MyAnimeList",
   "description": "Track manga progress and lists with MyAnimeList.",
   "kind": "tracker",
-  "apiVersion": "2.0",
-  "version": "2.1.1",
+  "apiVersion": "3.0",
+  "version": "3.0.0",
   "language": "multi",
   "languages": [
     "multi"
@@ -20,7 +20,6 @@
   "permissions": [
     "authenticationHandoff",
     "network",
-    "secureState",
     "trackerUpdates"
   ],
   "allowedHTTPSHosts": [
@@ -43,6 +42,44 @@
   "crate": "manko-myanimelist",
   "compatibility": {
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
+  },
+  "accountPolicy": {
+    "authentication": {
+      "mode": "oauth2PKCE",
+      "authorizationURL": "https://myanimelist.net/v1/oauth2/authorize",
+      "callbackScheme": "manko",
+      "callbackURL": "manko://oauth/myanimelist",
+      "clientIDInfoPlistKey": "MANKO_MYANIMELIST_OAUTH_CLIENT_ID",
+      "responseType": "code",
+      "scopes": [],
+      "tokenURL": "https://myanimelist.net/v1/oauth2/token",
+      "pkceMethod": "plain"
+    },
+    "requests": [
+      {
+        "origin": "https://api.myanimelist.net",
+        "pathPrefix": "/v2/",
+        "methods": [
+          "GET"
+        ],
+        "operations": [
+          "trackerSearch",
+          "progress",
+          "progressBatch",
+          "collections"
+        ]
+      },
+      {
+        "origin": "https://api.myanimelist.net",
+        "pathPrefix": "/v2/",
+        "methods": [
+          "PUT"
+        ],
+        "operations": [
+          "update"
+        ]
+      }
+    ]
   }
 }

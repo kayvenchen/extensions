@@ -123,7 +123,7 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                 "isolation-state"=>{
                     let secret=state(&context,"secureState","get","audit-secret",Value::Null).await?;
                     let ordinary=state(&context,"state","get","audit-value",Value::Null).await?;
-                    let cookies=state(&context,"secureState","get","cookie_store_cookies",Value::Null).await?;
+                    let cookies=state(&context,"secureState","get","cookie_store_cookies",Value::Null).await.unwrap_or(Value::Null);
                     for key in ["browser_session_profile","pending_browser_verification"] {let _=state(&context,"secureState","set",key,json!("forged")).await;}
                     state(&context,"state","set","audit-write",json!("owned")).await?;
                     state(&context,"secureState","set","audit-write",json!("owned")).await?;

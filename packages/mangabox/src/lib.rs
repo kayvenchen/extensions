@@ -358,16 +358,16 @@ async fn chapters(context: &Context, provider: Provider, id: &str, body: &str) -
             return Err(error("Missing chapter index", "invalidResponse"));
         }
     }
+    for item in &mut items { item["workId"] = json!(id); }
     Ok(json!(items))
 }
 fn pages(body: &str, provider: Provider) -> Result<Vec<String>> {
-    let html = Html::parse_document(body);
     let mut result = Vec::new();
     let mut arrays = std::collections::HashMap::new();
     let re =
         regex::Regex::new(r"(?s)\b(cdns|backupImage|chapterImages)\s*=\s*(\[[^;]*?\])").unwrap();
-    for script in html.select(&site::selector("script")) {
-        for values in re.captures_iter(&script.inner_html()) {
+    for script in site::blocks(body, "script") {
+        for values in re.captures_iter(script.body) {
             let parsed: Vec<String> =
                 serde_json::from_str(&values[2]).map_err(|_| site::invalid())?;
             arrays.insert(values[1].to_owned(), parsed);
@@ -390,6 +390,12 @@ fn pages(body: &str, provider: Provider) -> Result<Vec<String>> {
             )?);
         }
     } else {
+        // Parse only the reader fragment; navigation, chapter menus and comments
+        // can otherwise consume the native WASM dispatch budget.
+        let reader = site::blocks(body, "div").find(|block| site::attribute(block.header, "class")
+            .is_some_and(|value| value.split_whitespace().any(|class| class == "container-chapter-reader")))
+            .ok_or_else(site::invalid)?;
+        let html = Html::parse_fragment(reader.whole);
         for image in html.select(&site::selector(".container-chapter-reader > img")) {
             result.push(media(
                 image
@@ -409,6 +415,21 @@ fn pages(body: &str, provider: Provider) -> Result<Vec<String>> {
     }
     Ok(result)
 }
+// Details and installments share the series document, avoiding another paced
+// request when a title is opened. Short-lived public metadata only.
+async fn series_document(context: &Context, provider: Provider, id: &str) -> Result<String> {
+    let url = work_url(id, provider)?;
+    let value = context.remember(&format!("mangabox:series:{url}"), Some(120.0), async {
+        let body = document(context, provider, &url).await?;
+        details(&body, provider, id)?;
+        Ok(json!(body))
+    }, |value| {
+        if !value.is_string() { return Err(site::invalid()); }
+        Ok(())
+    }).await?;
+    Ok(text(&value).to_owned())
+}
+
 pub fn run(provider: Provider, context: Context, method: String, args: Value) -> Operation {
     Box::pin(async move {
         match method.as_str() {
@@ -426,12 +447,12 @@ pub fn run(provider: Provider, context: Context, method: String, args: Value) ->
             }
             "details" => {
                 let id = text(&args);
-                let body = document(&context, provider, &work_url(id, provider)?).await?;
+                let body = series_document(&context, provider, id).await?;
                 details(&body, provider, id)
             }
             "installments" => {
                 let id = text(&args["workId"]);
-                let body = document(&context, provider, &work_url(id, provider)?).await?;
+                let body = series_document(&context, provider, id).await?;
                 chapters(&context, provider, id, &body).await
             }
             "imagePages" => {

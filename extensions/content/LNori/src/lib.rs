@@ -34,7 +34,7 @@ fn path(value: &str, category: &str) -> Result<String> {
     Ok(identity(id)?.to_owned())
 }
 fn filters() -> Value {
-    configuration(
+    let mut value = configuration(
         "lnori-search",
         "LNORI",
         &[("genre", "Genre"), ("author", "Author")],
@@ -45,7 +45,9 @@ fn filters() -> Value {
             ("volumes", "Volumes"),
         ],
         &["en"],
-    )
+    );
+    value["sortedBrowseSectionID"] = json!("library");
+    value
 }
 async fn catalog(context: &Context) -> Result<Value> {
     context
@@ -85,6 +87,62 @@ async fn catalog(context: &Context) -> Result<Value> {
         )
         .await
 }
+// Cache compact cards, not the homepage DOM or the complete library.
+async fn homepage(context: &Context) -> Result<Value> {
+    context.remember("lnori:homepage:v1", Some(300.0), async {
+        let html = site::document(context, BASE, BASE, HOSTS, AGENT).await?;
+        let mut result = json!({});
+        for block in site::blocks(&html, "section") {
+            let id = site::attribute(block.header, "id").unwrap_or_default();
+            let key = match id.as_str() {
+                "hero-section" => "featured", "library" => "popular",
+                "spring" | "summer" | "autumn" | "fall" | "winter" => "seasonal",
+                _ => continue,
+            };
+            context.now().await?;
+            let mut cards = Vec::new();
+            if key == "featured" {
+                // Carousel cards nest decorative divs. Read only opening tags;
+                // constructing every decorative node is costly in iOS WASM.
+                let mut remaining = block.body;
+                while let Some(header) = site::tag_header(remaining, "div") {
+                    remaining = remaining.split_once(header).ok_or_else(site::invalid)?.1;
+                    let (Some(link), Some(title), Some(image)) = (
+                        site::attribute(header, "data-link"),
+                        site::attribute(header, "data-title"),
+                        site::attribute(header, "data-image"),
+                    ) else { continue; };
+                    let id = path(&link, "series")?;
+                    if title.is_empty() { return Err(site::invalid()); }
+                    cards.push(site::card(&id, &title, &site::link(&image, BASE, HOSTS)?, "lightNovel"));
+                }
+            } else {
+                for item in site::blocks(block.body, "a") {
+                    let Some(link) = site::attribute(item.header, "href").filter(|v| v.starts_with("/series/")) else { continue; };
+                    let Some(image) = site::tag_header(item.body, "img") else { continue; };
+                    let Some(source) = site::attribute(image, "src") else { continue; };
+                    let id = path(&link, "series")?;
+                    let title = site::attribute(image, "alt").filter(|v| !v.is_empty())
+                        .unwrap_or_else(|| site::field(&Html::parse_fragment(item.whole), "a"));
+                    if title.is_empty() { return Err(site::invalid()); }
+                    cards.push(site::card(&id, &title, &site::link(&source, BASE, HOSTS)?, "lightNovel"));
+                }
+            }
+            result[key] = json!(site::unique(cards, "workId"));
+        }
+        if result.as_object().is_none_or(|v| v.is_empty()) { return Err(site::invalid()); }
+        Ok(result)
+    }, |value| {
+        for cards in value.as_object().ok_or_else(site::invalid)?.values() {
+            for card in cards.as_array().ok_or_else(site::invalid)? {
+                identity(text(&card["workId"]))?;
+                site::link(text(&card["imageUrl"]), BASE, HOSTS)?;
+            }
+        }
+        Ok(())
+    }).await
+}
+
 fn row_attr(row: &Value, name: &str) -> String {
     site::tag_header(text(row), "article")
         .and_then(|h| site::attribute(h, name))
@@ -258,7 +316,12 @@ fn run(context: Context, method: String, args: Value) -> Operation {
         match method.as_str() {
             "initialize" | "invalidateCache" => Ok(Value::Null),
             "settings" => Ok(json!({"id":"settings","title":"LNORI","fields":[]})),
-            "discoverSections" => Ok(json!([{"id":"library","title":"Library","type":0}])),
+            "discoverSections" => Ok(json!([
+                {"id":"featured","title":"Featured","type":0,"presentation":"carousel"},
+                {"id":"seasonal","title":"Seasonal Preview","type":0,"presentation":"carousel"},
+                {"id":"popular","title":"Popular Novels","type":0,"presentation":"carousel"},
+                {"id":"library","title":"Library","type":0,"presentation":"latestGallery"}
+            ])),
             "searchFilters" => Ok(filters()),
             "searchSuggestions" => {
                 let data = catalog(&context).await?;
@@ -293,15 +356,18 @@ fn run(context: Context, method: String, args: Value) -> Operation {
             }
             "search" | "discover" => {
                 validate_search(&filters(), &args)?;
-                if method == "discover"
-                    && args["sectionId"]
-                        .as_str()
-                        .or(args["section"]["id"].as_str())
-                        .is_some_and(|id| id != "library")
-                {
-                    return Err(error("Unknown discovery section", "invalidSection"));
-                }
                 let page = page(&args, 1_000_000)?;
+                let section = args["sectionId"].as_str().or(args["section"]["id"].as_str()).unwrap_or("library");
+                if method == "discover" && section != "library" {
+                    if !matches!(section, "featured" | "seasonal" | "popular") {
+                        return Err(error("Unknown discovery section", "invalidSection"));
+                    }
+                    let data = homepage(&context).await?;
+                    let items = data[section].as_array().ok_or_else(site::invalid)?;
+                    let start = (page as usize - 1) * 25;
+                    return Ok(json!({"items":items.iter().skip(start).take(25).collect::<Vec<_>>(),
+                        "metadata":if start + 25 < items.len() { json!({"page":page+1}) } else { Value::Null }}));
+                }
                 let data = catalog(&context).await?;
                 let query = text(&args["query"]).trim().to_lowercase();
                 if query.len() > 500 {

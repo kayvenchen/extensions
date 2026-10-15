@@ -284,7 +284,9 @@ fn run(context: Context, method: String, args: Value) -> Operation {
             "settings" => Ok(json!({"id":"settings","title":"MangaFire","fields":[]})),
             "searchFilters" => Ok(filters()),
             "discoverSections" => Ok(json!([
+                {"id":"trending-day","title":"Trending Today","type":0,"presentation":"carousel"},
                 {"id":"trending","title":"Trending This Week","type":0,"presentation":"carousel"},
+                {"id":"trending-month","title":"Trending This Month","type":0,"presentation":"carousel"},
                 {"id":"latest","title":"Latest Updates","type":0,"presentation":"latestGallery"},
             ])),
             "searchSuggestions" => {
@@ -308,17 +310,17 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                     .as_str()
                     .or(args["section"]["id"].as_str())
                     .unwrap_or("latest");
-                if method == "discover" && !matches!(section, "trending" | "latest") {
+                if method == "discover" && !matches!(section, "trending-day" | "trending" | "trending-month" | "latest") {
                     return Err(error("Unknown discovery section", "invalidSection"));
                 }
-                let trending = method == "discover" && section == "trending";
+                let trending = method == "discover" && section.starts_with("trending");
                 if trending && current != 1 {
                     return Ok(json!({"items":[],"metadata":null}));
                 }
                 let mut pairs = if trending {
                     vec![
                         ("type".into(), "trending".into()),
-                        ("days".into(), "7".into()),
+                        ("days".into(), match section { "trending-day" => "1", "trending-month" => "30", _ => "7" }.into()),
                         ("limit".into(), "30".into()),
                     ]
                 } else {

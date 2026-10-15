@@ -3,8 +3,8 @@
   "name": "Hitomi.la",
   "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
   "kind": "content",
-  "apiVersion": "2.0",
-  "version": "2.0.7",
+  "apiVersion": "3.0",
+  "version": "3.0.0",
   "language": "en",
   "languages": [
     "en",
@@ -43,7 +43,8 @@
   "permissions": [
     "network",
     "rateLimiting",
-    "redactedLogging"
+    "redactedLogging",
+    "state"
   ],
   "allowedHTTPSHosts": [
     "hitomi.la",
@@ -70,7 +71,7 @@
     "note": null,
     "limitations": [],
     "runtime": "native-wasm",
-    "apiVersion": "2.0"
+    "apiVersion": "3.0"
   },
   "upstream": {
     "repository": "https://github.com/Aidoku-Community/sources",

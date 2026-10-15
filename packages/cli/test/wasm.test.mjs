@@ -14,14 +14,14 @@ test("Independent catalogs contain only their packages with matching digests",as
   for(const [pack,ids] of Object.entries(packs)) {
     const directory=resolve(root,`dist/${pack}/v1/stable`);
     const manifest=JSON.parse(await readFile(resolve(directory,"versioning.json")));
-    assert.equal(manifest.schemaVersion,2);
+    assert.equal(manifest.schemaVersion,3);
     assert.deepEqual(manifest.sources.map(entry=>entry.id),ids);
     assert.deepEqual((await readdir(resolve(directory,"sources"))).sort(),ids);
     for(const entry of manifest.sources){
       const metadata=JSON.parse(await readFile(resolve(root,"extensions",entry.kind,entry.id,"extension.json")));
       assert.equal(entry.version,metadata.version);
       assert.equal(entry.extension.runtime,"wasm");
-      assert.equal(entry.extension.apiVersion,"2.0");
+      assert.equal(entry.extension.apiVersion,"3.0");
       assert.equal(entry.extension.scriptURL,undefined);
       assert.equal(Boolean(metadata.connectorKind || entry.kind === "tracker"),pack === "official");
       const bytes=await readFile(resolve(directory,entry.extension.moduleURL));
@@ -77,4 +77,29 @@ test("CLI scaffolds a compilable Rust package without modifying the published ca
     assert.equal(args.includes("--workspace"),false,"release builds must isolate extension dependency features");
     assert.deepEqual(args.slice(0,3),["build","-p","manko-fixture"]);
   } finally {await rm(directory,{recursive:true,force:true});}
+});
+
+test("Tracker metadata rejects disguised writes and ambiguous account paths", async () => {
+  await mkdir(resolve(root, "target/cli-tests"), {recursive: true});
+  const directory = await mkdtemp(resolve(root, "target/cli-tests/account-policy-"));
+  try {
+    await writeFile(resolve(directory, "Cargo.toml"), '[workspace]\nmembers=[]\n[workspace.package]\nedition="2021"\nlicense="Apache-2.0"\n');
+    await writeFile(resolve(directory, "LICENSE"), await readFile(resolve(root, "LICENSE")));
+    execFileSync(process.execPath, [resolve(root, "packages/cli/bin/manko-ext.mjs"), "new", "--id", "Fixture", "--kind", "tracker"], {env: {...process.env, MANKO_EXTENSION_ROOT: directory}});
+    const pack = resolve(directory, "extensions/tracker/Fixture");
+    const metadata = JSON.parse(await readFile(resolve(pack, "extension.json")));
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      metadata.accountPolicy.requests[0].methods = [method];
+      metadata.accountPolicy.requests[0].operations = ["progress"];
+      delete metadata.accountPolicy.requests[0].bodyKind;
+      await writeFile(resolve(pack, "extension.json"), JSON.stringify(metadata));
+      await assert.rejects(assertExtensionPackage(pack, "tracker", "Fixture"), /Mutating requests must declare update access/);
+    }
+    metadata.accountPolicy.requests[0].methods = ["GET"];
+    for (const path of ["/api/../", "/api/./", "/api/%2e%2e/", "/api/..;/", "/api/\\token", "/api/\u0000token"]) {
+      metadata.accountPolicy.requests[0].pathPrefix = path;
+      await writeFile(resolve(pack, "extension.json"), JSON.stringify(metadata));
+      await assert.rejects(assertExtensionPackage(pack, "tracker", "Fixture"));
+    }
+  } finally { await rm(directory, {recursive: true, force: true}); }
 });
