@@ -4,7 +4,7 @@
   "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
   "kind": "content",
   "apiVersion": "3.0",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "language": "en",
   "languages": [
     "en",

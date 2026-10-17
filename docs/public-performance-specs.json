@@ -1,0 +1,90 @@
+{
+  "captureDate": "2026-10-14",
+  "notes": "Readiness predicates grounded in inspected public DOM. Same Simulator window; retain CSS viewport separately. These specs define three initial-content flows, not next-page interaction or cold prerequisite equivalence.",
+  "specs": [
+    {
+      "source": "LNori",
+      "flow": "catalog",
+      "url": "https://lnori.com",
+      "contentKey": "4239/ascendance-of-a-bookworm-ill-do-anything-to-become-a-librarian",
+      "predicate": "const i=document.querySelector('#hero-stack img'),h=document.querySelector('#hero-title');if(!i||!h?.textContent.includes('Ascendance'))return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.width>0&&r.top<innerHeight&&r.bottom>0;"
+    },
+    {
+      "source": "LNori",
+      "flow": "details",
+      "url": "https://lnori.com/series/4239/ascendance-of-a-bookworm-ill-do-anything-to-become-a-librarian",
+      "contentKey": "4239/ascendance-of-a-bookworm-ill-do-anything-to-become-a-librarian",
+      "predicate": "const h=document.querySelector('h1'),a=document.querySelector('a[href*=\"/book/14185/\"]');return !!h&&h.textContent.includes('Ascendance')&&!!a&&document.querySelectorAll('a[href*=\"/book/\"]').length>20&&h.getBoundingClientRect().top<innerHeight&&document.fonts.status==='loaded';"
+    },
+    {
+      "source": "LNori",
+      "flow": "reader",
+      "url": "https://lnori.com/book/14185/ascendance-of-a-bookworm-part-1-daughter-of-a-soldier-volume-1#page05",
+      "contentKey": "14185/ascendance-of-a-bookworm-part-1-daughter-of-a-soldier-volume-1",
+      "predicate": "const s=document.querySelector('#page05');if(!s||!s.textContent.includes('Urano'))return false;const r=s.getBoundingClientRect();return r.top>=-100&&r.top<innerHeight-100&&document.fonts.status==='loaded';"
+    },
+    {
+      "source": "MangaFox",
+      "flow": "catalog",
+      "url": "https://fanfox.net/",
+      "contentKey": "vigilante_boku_no_hero_academia_illegals",
+      "predicate": "const a=document.querySelector('.manga-list-1-list a[href=\"/manga/vigilante_boku_no_hero_academia_illegals/\"]'),i=a?.querySelector('img');if(!i)return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.height>0&&r.top<innerHeight&&r.bottom>0;"
+    },
+    {
+      "source": "MangaFox",
+      "flow": "details",
+      "url": "https://fanfox.net/manga/vigilante_boku_no_hero_academia_illegals/",
+      "contentKey": "vigilante_boku_no_hero_academia_illegals",
+      "predicate": "const h=document.querySelector('.detail-info-right-title-font');return !!h&&h.textContent.includes('Vigilante')&&document.querySelectorAll('#chapterlist a').length>=100&&h.getBoundingClientRect().top<innerHeight;"
+    },
+    {
+      "source": "MangaFox",
+      "flow": "reader",
+      "url": "https://m.fanfox.net/manga/vigilante_boku_no_hero_academia_illegals/c000/1.html",
+      "contentKey": "vigilante_boku_no_hero_academia_illegals/c000",
+      "predicate": "const i=document.querySelector('img#image');if(!i)return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.top<innerHeight&&r.bottom>0&&r.width>0;"
+    },
+    {
+      "source": "MangaFire",
+      "flow": "catalog",
+      "url": "https://mangafire.to/",
+      "contentKey": "ro8ro",
+      "predicate": "const i=document.querySelector('a[href=\"/title/ro8ro-all-class-awakening-god-slayer\"] img');if(!i)return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.width>0&&r.top<innerHeight&&r.bottom>0;"
+    },
+    {
+      "source": "MangaFire",
+      "flow": "details",
+      "url": "https://mangafire.to/title/ro8ro-all-class-awakening-god-slayer",
+      "contentKey": "ro8ro",
+      "predicate": "const h=document.querySelector('h1');return !!h&&h.textContent.includes('All-Class')&&document.querySelectorAll('a[href*=\"/chapter/\"]').length>=20&&h.getBoundingClientRect().top<innerHeight;"
+    },
+    {
+      "source": "MangaFire",
+      "flow": "reader",
+      "url": "https://mangafire.to/title/ro8ro-all-class-awakening-god-slayer/chapter/6973948",
+      "contentKey": "ro8ro/6973948",
+      "predicate": "const i=document.querySelector('img.reader-img[alt=\"page 1\"]');if(!i)return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.top>=-100&&r.top<innerHeight&&r.bottom>0;"
+    },
+    {
+      "source": "MangaBat",
+      "flow": "catalog",
+      "url": "https://www.mangabats.com/manga-list/hot-manga",
+      "contentKey": "manga/martial-peak",
+      "predicate": "const i=document.querySelector('a.cover[href=\"https://www.mangabats.com/manga/martial-peak\"] img');if(!i)return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.width>0&&r.top<innerHeight&&r.bottom>0;"
+    },
+    {
+      "source": "MangaBat",
+      "flow": "details",
+      "url": "https://www.mangabats.com/manga/solo-leveling",
+      "contentKey": "manga/solo-leveling",
+      "predicate": "const h=document.querySelector('h1'),a=document.querySelector('a[href*=\"/manga/solo-leveling/chapter-0\"]');return !!h&&h.textContent.includes('Solo Leveling')&&!!a&&document.querySelectorAll('a[href*=\"/manga/solo-leveling/chapter-\"]').length>20&&h.getBoundingClientRect().top<innerHeight;"
+    },
+    {
+      "source": "MangaBat",
+      "flow": "reader",
+      "url": "https://www.mangabats.com/manga/solo-leveling/chapter-0",
+      "contentKey": "manga/solo-leveling|manga/solo-leveling/chapter-0",
+      "predicate": "const i=document.querySelector('.container-chapter-reader img');if(!i)return false;const r=i.getBoundingClientRect();return decodedImage(i)&&r.top<innerHeight&&r.bottom>0&&r.width>0;"
+    }
+  ]
+}

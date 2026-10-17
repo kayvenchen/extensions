@@ -1,6 +1,6 @@
 {
   "counts": {
-    "content": 13,
+    "content": 14,
     "tracker": 2
   },
   "packs": {
@@ -19,6 +19,7 @@
       "MangaFire",
       "MangaFox",
       "MangaKakalot",
+      "MangaKatana",
       "MangaNato",
       "NHentai",
       "OmegaScans"
@@ -82,6 +83,11 @@
     },
     {
       "id": "MangaKakalot",
+      "kind": "content",
+      "availability": "approvalRequired"
+    },
+    {
+      "id": "MangaKatana",
       "kind": "content",
       "availability": "approvalRequired"
     },

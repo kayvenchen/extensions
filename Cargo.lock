@@ -453,6 +453,7 @@ version = "2.0.8"
 dependencies = [
  "base64",
  "futures",
+ "html-escape",
  "manko-sdk",
  "manko-site-support",
  "percent-encoding",
@@ -541,6 +542,18 @@ dependencies = [
  "manko-mangabox",
  "manko-sdk",
  "serde_json",
+]
+
+[[package]]
+name = "manko-mangakatana"
+version = "3.0.0"
+dependencies = [
+ "chrono",
+ "manko-sdk",
+ "manko-site-support",
+ "regex",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

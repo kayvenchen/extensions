@@ -573,6 +573,44 @@ test("HitomiLA resolves title indexes through ordinary HTTP when native image re
   assert.deepEqual(ranges, ["bytes=0-463", "bytes=20-27"]);
 });
 
+test("Hitomi title posting lists span chunks and sorted searches read only the needed catalog range", async () => {
+  const key = createHash("sha256").update("sample").digest().subarray(0, 4);
+  const ids = Array.from({length:6000}, (_, i) => i + 1);
+  const posting = Buffer.concat([nozomi([ids.length]), nozomi(ids)]);
+  const catalog = nozomi(Array.from({length:170000}, (_, i) => i + 1));
+  const node = bTreeNode(key, 0, posting.length);
+  const cache = metadataCacheFixture();
+  const responder = request => {
+    const path = new URL(request.url).pathname;
+    if (path === "/galleriesindex/version") return runtimeResponse({url:request.url,text:"123456"});
+    const data = path.endsWith(".index") ? node : path.endsWith(".data") ? posting : path.endsWith(".nozomi") ? catalog : null;
+    if (data) {
+      const [,first,last] = /^bytes=(\d+)-(\d+)$/.exec(request.headers.Range);
+      const start=Number(first), end=Math.min(Number(last),data.length-1);
+      return runtimeResponse({url:request.url,status:206,headers:{"Content-Range":`bytes ${start}-${end}/${data.length}`},bytes:data.subarray(start,end+1)});
+    }
+    const id = /^\/galleryblock\/(\d+)\.html$/.exec(path)?.[1];
+    if (id) return runtimeResponse({url:request.url,text:galleryBlock(Number(id))});
+    throw new Error(`Unexpected ${request.url}`);
+  };
+  const loaded = await loadContentExtension(mainPath,responder,{cache});
+  const first = await loaded.extension.search({query:"sample"});
+  assert.deepEqual(first.items.map(v=>v.workId),ids.slice(0,25).map(String));
+  assert.deepEqual(first.metadata,{offset:25});
+  assert.equal(loaded.calls.filter(c=>c.url.endsWith(".data")).length,2);
+  assert.equal(loaded.calls.filter(c=>c.url.endsWith(".nozomi")).length,1);
+  const restarted = await loadContentExtension(mainPath,responder,{cache});
+  const second = await restarted.extension.search({query:"sample",metadata:first.metadata});
+  assert.deepEqual(second.items.map(v=>v.workId),ids.slice(25,50).map(String));
+  assert.equal(restarted.calls.filter(c=>c.url.endsWith(".data") || c.url.endsWith(".nozomi")).length,0);
+  // A valid-size range with a false aggregate count must still fail closed.
+  posting.writeUInt32BE(ids.length+1);
+  const malformed = await loadContentExtension(mainPath,responder,{cache:metadataCacheFixture()});
+  await assert.rejects(malformed.extension.search({query:"sample"}),{type:"invalidResponse"});
+  posting.writeUInt32BE(ids.length);
+  assert.equal((await malformed.extension.search({query:"sample"})).items.length,25);
+});
+
 test("HitomiLA fails closed on malformed Nozomi and gallery assignment data", async () => {
   let mode = "nozomi";
   const loaded = await loadContentExtension(mainPath, request => {
@@ -875,10 +913,10 @@ test("Hitomi compact cards are validated, expire, and reload independently of fu
   const cache = metadataCacheFixture();
   const loaded = await loadContentExtension(mainPath, sortResponder("/n/index-english.nozomi", [42]), {cache});
   const first = await loaded.extension.discover({sectionId:"latest"});
-  const card = cache.entries.get("hitomi:gallery-card-v2:42").value;
+  const card = cache.entries.get("hitomi:gallery-card-v3:42").value;
   assert.equal(card.files.length, 1);
   assert.equal(card.id, "42");
-  cache.entries.set("hitomi:gallery-card-v2:42", {value:{...card,id:"99"},time:0});
+  cache.entries.set("hitomi:gallery-card-v3:42", {value:{...card,id:"99"},time:0});
   const recovered = await loaded.extension.discover({sectionId:"latest"});
   assert.deepEqual(recovered.items, first.items);
   assert.equal(loaded.calls.filter(call => call.url.includes("/galleryblock/")).length, 2);

@@ -6,7 +6,7 @@
   "apiVersion": "3.0",
   "runtime": "wasm",
   "crate": "manko-lnori",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "language": "en",
   "languages": [
     "en"

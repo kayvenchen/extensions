@@ -4,16 +4,16 @@ import {resolve} from "node:path";
 import {loadContentExtension,runtimeResponse,metadataCacheFixture,MINIMAL_WEBP_BYTES} from "../../test-runtime.mjs";
 const main=resolve(import.meta.dirname,"../main.wasm");
 import { workID, bookID, card, library, homepage, schema, series, bookSchema, book, responder } from "./fixtures.mjs";
-test("LNORI caches the complete catalog, pages unique series and filters locally",async()=>{
+test("LNORI caches bounded pages, preserves unique series and filters locally",async()=>{
  const cache=metadataCacheFixture();const loaded=await loadContentExtension(main,responder,{cache});
  const first=await loaded.extension.discover({sectionId:"library"});
  assert.equal(first.items.length,25);assert.equal(first.metadata.page,2);assert.equal(first.items[0].workId,workID);assert.equal(first.items[0].mediaKind,"lightNovel");
- const last=await loaded.extension.discover({sectionId:"library",metadata:first.metadata});assert.equal(last.items.length,1);assert.equal(last.metadata,null);assert.equal(loaded.calls.length,1);
+ const last=await loaded.extension.discover({sectionId:"library",metadata:first.metadata});assert.equal(last.items.length,1);assert.equal(last.metadata,null);assert.equal(loaded.calls.length,2);
  const search=await loaded.extension.search({query:"sample 3",selections:[{fieldID:"genre",value:"fantasy"}]});assert.equal(search.items.length,1);
  const excluded=await loaded.extension.search({selections:[{fieldID:"genre",value:"fantasy",polarity:"exclude"}]});assert.equal(excluded.items.length,0);
  const suggestions=await loaded.extension.searchSuggestions({fieldID:"genre",query:"fan"});assert.deepEqual(suggestions.map(s=>s.value),["fantasy"]);
- const restarted=await loadContentExtension(main,responder,{cache});await restarted.extension.search({query:"sample"});assert.equal(restarted.calls.length,0);
- cache.setReload(true);await restarted.extension.search({query:"sample"});assert.equal(restarted.calls.length,1);
+ const restarted=await loadContentExtension(main,responder,{cache});await restarted.extension.search({query:"sample 3",selections:[{fieldID:"genre",value:"fantasy"}]});assert.equal(restarted.calls.length,0);
+ cache.setReload(true);await restarted.extension.search({query:"sample 3",selections:[{fieldID:"genre",value:"fantasy"}]});assert.equal(restarted.calls.length,1);
 });
 test("LNORI volumes use the app's XHTML contract and remove executable markup",async()=>{
  const loaded=await loadContentExtension(main,responder,{cache:metadataCacheFixture()});
@@ -44,7 +44,10 @@ test("LNORI large catalogs and long volumes retain all identities and reading te
  const largeBook=`<script type="application/ld+json">${JSON.stringify(bookSchema)}</script><h1 id="book-title">Original sample volume</h1><article class="content-body"><section id="chapter1">${paragraphs}</section></article>`;
  const loaded=await loadContentExtension(main,r=>runtimeResponse({url:r.url,text:new URL(r.url).pathname==='/library'?largeLibrary:new URL(r.url).pathname.startsWith('/series/')?series:largeBook}),{cache:metadataCacheFixture()});
  const last=await loaded.extension.search({metadata:{page:36}});assert.equal(last.items.length,9);assert.equal(last.metadata,null);
- const found=await loaded.extension.search({query:'Sample 884'});assert.equal(found.items[0].workId,'884/sample-884');assert.equal(loaded.calls.length,1);
+ const found=await loaded.extension.search({query:'Sample 884'});assert.equal(found.items[0].workId,'884/sample-884');assert.equal(loaded.calls.length,2);
+ for(const {value} of loaded.context.cache.entries.values()) {
+  if(value.items) assert.ok(value.items.length<=25,'cache stores only bounded result pages');
+ }
  const volume=await loaded.extension.publicationContent({installmentId:bookID,workId:workID});
  assert.equal((volume.text.match(/Original sample paragraph/g)||[]).length,4000);assert.ok(volume.text.includes('paragraph 3999 &amp;'));assert.ok(volume.text.includes('<section id="chapter1">'));
 });
@@ -104,4 +107,22 @@ test("LNORI homepage streaming preserves nested cards, entities, and text fallba
  assert.equal(featured.items.length,5);assert.equal(featured.items[0].title,'Original & Journey > 1');
  const seasonal=await loaded.extension.discover({sectionId:'seasonal'});
  assert.equal(seasonal.items[0].title,'Third & Journey');assert.equal(loaded.calls.length,1);
+});
+
+
+test("LNORI cold searches cache only matching cards and reuse them after restart",async()=>{
+ const cache=metadataCacheFixture();
+ const html=Array.from({length:884},(_,i)=>card(i+1)).join('');
+ const respond=r=>runtimeResponse({url:r.url,text:html});
+ const loaded=await loadContentExtension(main,respond,{cache});
+ const found=await loaded.extension.search({query:'sample 884'});
+ assert.equal(found.items[0].workId,'884/sample-884');
+ assert.equal(cache.entries.size,1);
+ assert.equal([...cache.entries.values()][0].value.items.length,1);
+ const restarted=await loadContentExtension(main,respond,{cache});
+ assert.deepEqual(await restarted.extension.search({query:'sample 884'}),found);
+ assert.equal(restarted.calls.length,0);
+ assert.equal((await restarted.extension.search({query:'absent title'})).items.length,0);
+ assert.equal((await restarted.extension.search({query:'absent title'})).items.length,0);
+ assert.equal(restarted.calls.length,1);
 });

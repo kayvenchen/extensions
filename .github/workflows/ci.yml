@@ -27,6 +27,5 @@ jobs:
           MANKO_SOURCE_REVISION: main
       - run: npm run docs:check
       - run: npm run docs:build
-      - run: npm run publish:dry-run
       - name: Verify generated outputs are committed
         run: node packages/cli/lib/verify-generated.mjs

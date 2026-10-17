@@ -20,7 +20,7 @@ Create a crate with manko-ext new --id ExampleSource, or add --kind tracker. The
 
 Read the [Extension ABI](https://github.com/k800k/extensions/blob/main/ABI.md) for JSON dispatch, asynchronous native requests, cancellation, memory ownership and runtime limits.
 
-Guest modules have no imports or WASI access. Use SDK context requests for HTTP, protected storage, metadata caching, time and visible authentication handoff. Domain result types, structured filters, suggestions and detail facets retain the native Manko contract.
+Guest modules have no imports or WASI access. Native transport restricts requests to reviewed destinations. Tracker modules use authenticated requests under their reviewed account policy; they cannot read native OAuth tokens. Use SDK context requests for HTTP, protected storage, metadata caching, time and visible authentication handoff. Domain result types, structured filters, suggestions and detail facets retain the native Manko contract.
 
 Metadata cache reads must be validated. SDK remember coalesces matching loaders through native leases and fences stale writes. Mutable gallery metadata expires after 30 minutes, binary index ranges and suggestions after 5 minutes, routing after 1 minute. Only version-addressed data may use an indefinite lifetime. Hitomi browsing uses 100-byte page ranges; larger filtered indexes use binary chunks no larger than 16 KiB, with alignment and Content-Range validation.
 
@@ -32,8 +32,8 @@ CI verifies hashes, byte counts and ABI metadata against both committed and rebu
 
 ## Release Coordination
 
-Publish API 2.0 artifacts only alongside a WASM-capable Manko release. Existing installations require the user to select Update. JavaScript is never executed during metadata import or backup restoration, and failed updates leave the prior record intact. Native server connections and compatible independent repositories remain supported.
+Publish API 3.0 artifacts only alongside a WASM-capable Manko release. Catalogs use ordinary schema-3 JSON with no publisher signing keys; run bundle and publish validation before release. See [Security](https://github.com/k800k/extensions/blob/main/SECURITY.md). Existing API 1/2 installations remain paused until the user selects Update and reviews website and account access. JavaScript is never executed during metadata import or backup restoration, and failed updates leave the prior record intact. Native server connections and compatible independent repositories remain supported.
 
 ## Server connectors
 
-Komga is an API 2.0 content package with `connectorKind: "komga"` and connector profile v1. It uses the same compiler, SDK, bundler and validation commands. One installed module can serve several native connections. Manko keeps setup, credentials, stable library IDs and file downloads native; Rust handles the server API. Existing connections opt in through Source Settings. Connector publication requires the corresponding app support.
+Komga is an API 3.0 content package with `connectorKind: "komga"` and connector profile v1. It uses the same compiler, SDK, bundler and validation commands. One installed module can serve several native connections. Manko keeps setup, credentials, stable library IDs and file downloads native; Rust handles the server API. Existing connections opt in through Source Settings. Connector publication requires the corresponding app support.

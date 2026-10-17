@@ -5,11 +5,11 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-test('all 15 release WASM packages complete the shared offline audit', async()=>{
+test('all 16 release WASM packages complete the shared offline audit', async()=>{
  const root=resolve(import.meta.dirname,'../../..');
  await promisify(execFile)(process.execPath,['scripts/audit-extensions.mjs'],{cwd:root});
  const results=JSON.parse(await readFile(resolve(root,'target/extension-audit/fixtures/results.json')));
- assert.equal(results.length,15);
+ assert.equal(results.length,16);
  assert.ok(results.every(result=>result.status==='pass'));
  for(const result of results){
   assert.ok(result.steps.some(step=>step.name==='details'||step.name==='progress'));

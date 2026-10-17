@@ -2,6 +2,7 @@ name: pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
   pages: write
@@ -25,10 +26,12 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - run: npm ci
-      - name: Build packages at the exact published source revision
-        run: npm run bundle
+      - name: Build and validate packages at the published source revision
         env:
           MANKO_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          npm run bundle
+          npm run publish:dry-run
       - run: npm run docs:build
       - uses: actions/configure-pages@v5
       - run: mkdir _site && cp -R site/. _site/ && cp -R dist _site/dist

@@ -6,6 +6,7 @@ members = [
   "extensions/content/Suwayomi",
   "packages/mangabox",
   "extensions/content/MangaKakalot",
+  "extensions/content/MangaKatana",
   "extensions/content/MangaNato",
   "extensions/content/MangaBat",
   "extensions/content/MangaFire",

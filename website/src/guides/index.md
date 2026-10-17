@@ -16,13 +16,13 @@ Refresh a repository to check for newer manifest versions, then use Update for t
 
 ## Custom catalogs
 
-To use another publisher's repository, add its HTTPS repository URL inside Manko. A compatible repository contains `versioning.json` and versioned API 2.0 WASM modules. The website displays this repository's catalog; manage other repositories in the app.
+To use another publisher's repository, add its HTTPS repository URL inside Manko. A compatible repository contains a schema-3 `versioning.json` catalog and versioned API 3.0 WASM modules. The website displays this repository's catalog; manage other repositories in the app.
 
 ## Install an extension
 
 Search by name, ID, or provider website, or filter by **Language** and **Content Rating**. The total count updates as you filter, and language groups with no matching sources disappear.
 
-Choose the arrow on a source row to open that extension's catalog entry in Manko, then select Get or Update. Retired and unavailable entries have disabled arrows. **Add Repository** opens the repository catalog without selecting an extension; it never installs code automatically.
+Choose the arrow on a source row to open that extension's catalog entry in Manko, then select Get or Update. Review the publisher, website destinations and account actions before choosing Install. Cancel if a destination is unfamiliar. Manko hasn’t verified the publisher. Only approve websites you trust. Retired and unavailable entries have disabled arrows. **Add Repository** opens the repository catalog without selecting an extension; it never installs code automatically.
 
 ## Content ratings
 

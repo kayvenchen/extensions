@@ -49,43 +49,100 @@ fn filters() -> Value {
     value["sortedBrowseSectionID"] = json!("library");
     value
 }
-async fn catalog(context: &Context) -> Result<Value> {
-    context
-        .remember(
-            "lnori:catalog:v3",
-            Some(300.0),
-            async {
-                let html =
-                    site::document(context, &format!("{BASE}library"), BASE, HOSTS, AGENT).await?;
-                let mut rows = Vec::new();
-                for (index, block) in site::blocks(&html, "article")
-                    .filter(|b| b.header.contains("class=\"card\""))
-                    .enumerate()
-                {
-                    if index % 100 == 0 {
-                        context.now().await?;
-                    }
-                    let figure = site::blocks(block.body, "figure")
-                        .next()
-                        .ok_or_else(site::invalid)?;
-                    rows.push(Value::String(format!("{}{}", block.header, figure.whole)));
+fn hydrate(block: &site::Block<'_>) -> Result<Value> {
+    let figure = site::blocks(block.body, "figure").next().ok_or_else(site::invalid)?;
+    let href = site::tag_header(figure.body, "a")
+        .and_then(|h| site::attribute(h, "href")).ok_or_else(site::invalid)?;
+    let id = if let Some(id) = href.strip_prefix("/series/") {
+        identity(id)?.to_owned()
+    } else { path(&href, "series")? };
+    if id.split('/').next() != site::attribute(block.header, "data-id").as_deref() {
+        return Err(site::invalid());
+    }
+    let title = site::attribute(block.header, "data-t").filter(|v| !v.is_empty()).ok_or_else(site::invalid)?;
+    let image = site::tag_header(figure.body, "img")
+        .and_then(|h| site::attribute(h, "src")).ok_or_else(site::invalid)?;
+    Ok(site::card(&id, &title, &site::link(&image, BASE, HOSTS)?, "lightNovel"))
+}
+async fn catalog(context: &Context, args: &Value) -> Result<Value> {
+    let query = text(&args["query"]).trim().to_lowercase();
+    if query.len() > 500 { return Err(error("Search query is too long", "invalidSearchTerm")); }
+    let page = page(args, 1_000_000)?;
+    let sort = args["sort"].as_str().unwrap_or("relevance");
+    let field = match sort { "year" => "data-d", "volumes" => "data-v", _ => "data-rel" };
+    let key = format!("lnori:page:v7:{}", json!({"query":query,"page":page,"sort":sort,"selections":args["selections"]}));
+    let load = async {
+        let html = site::document(context, &format!("{BASE}library"), BASE, HOSTS, AGENT).await?;
+        let mut seen = HashSet::new();
+        let mut rows = Vec::new();
+        let mut found_catalog = false;
+        for (index, block) in site::blocks(&html,"article").filter(|b| b.header.contains("class=\"card\"")).enumerate() {
+            if index % 100 == 0 { context.now().await?; }
+            found_catalog = true;
+            let attr = |name| site::attribute(block.header, name).unwrap_or_default();
+            if !seen.insert(attr("data-id")) { continue; }
+            if !query.is_empty() && !attr("data-t").to_lowercase().contains(&query)
+                && !attr("data-a").to_lowercase().contains(&query) { continue; }
+            if !args["selections"].as_array().into_iter().flatten().all(|selection| {
+                let value = text(&selection["value"]).to_lowercase();
+                let matches = if selection["fieldID"] == "genre" {
+                    attr("data-tags").split(',').any(|g| g.trim().eq_ignore_ascii_case(&value))
+                } else { attr("data-a").to_lowercase().contains(&value) };
+                matches != (selection["polarity"] == "exclude")
+            }) { continue; }
+            let title = if sort == "title" { attr("data-t").to_lowercase() } else { String::new() };
+            let rank = attr(field).parse::<u64>().unwrap_or(0);
+            rows.push((block, title, rank));
+        }
+        if !found_catalog { return Err(site::invalid()); }
+        if sort == "title" { rows.sort_by(|a,b| a.1.cmp(&b.1)); }
+        else { rows.sort_by(|a,b| b.2.cmp(&a.2)); }
+        let start = (page as usize - 1) * 25;
+        let next = if start + 25 < rows.len() { json!({"page":page+1}) } else { Value::Null };
+        // Rank lightweight header references, then parse and cache one page.
+        // Serializing all 884 cards exhausted the interpreted guest's budget.
+        let items = rows.iter().skip(start).take(25).map(|row| hydrate(&row.0)).collect::<Result<Vec<_>>>()?;
+        Ok(json!({"items":items,"metadata":next}))
+    };
+    if key.len() > 16_000 { return load.await; }
+    context.remember(&key, Some(300.0), load, |value| {
+        let items = value["items"].as_array().filter(|items| items.len() <= 25).ok_or_else(site::invalid)?;
+        for item in items {
+            identity(text(&item["workId"]))?;
+            site::link(text(&item["imageUrl"]), BASE, HOSTS)?;
+        }
+        Ok(())
+    }).await
+}
+async fn catalog_suggestions(context: &Context) -> Result<Value> {
+    context.remember("lnori:suggestions:v1", Some(300.0), async {
+        let html = site::document(context, &format!("{BASE}library"), BASE, HOSTS, AGENT).await?;
+        let mut seen = HashSet::new();
+        let mut values = Vec::new();
+        let mut found_catalog = false;
+        for (index, block) in site::blocks(&html,"article").filter(|b| b.header.contains("class=\"card\"")).enumerate() {
+            if index % 100 == 0 { context.now().await?; }
+            found_catalog = true;
+            let author = site::attribute(block.header,"data-a").unwrap_or_default();
+            if !author.is_empty() && seen.insert(("author",author.clone())) {
+                values.push(json!({"fieldID":"author","value":author,"title":author}));
+            }
+            for genre in site::attribute(block.header,"data-tags").unwrap_or_default().split(',')
+                .map(|v| v.trim().to_lowercase()).filter(|v| !v.is_empty()) {
+                if seen.insert(("genre",genre.clone())) {
+                    values.push(json!({"fieldID":"genre","value":genre,"title":genre}));
                 }
-                if rows.is_empty() {
-                    return Err(site::invalid());
-                }
-                context.now().await?;
-                Ok(Value::Array(rows))
-            },
-            |v| {
-                if v.as_array()
-                    .is_none_or(|rows| rows.is_empty() || rows.iter().any(|r| !r.is_string()))
-                {
-                    return Err(site::invalid());
-                }
-                Ok(())
-            },
-        )
-        .await
+            }
+        }
+        if !found_catalog { return Err(site::invalid()); }
+        Ok(Value::Array(values))
+    }, |value| {
+        if value.as_array().is_none_or(|rows| rows.iter().any(|row|
+            !matches!(row["fieldID"].as_str(),Some("author"|"genre")) || !row["value"].is_string() || !row["title"].is_string())) {
+            return Err(site::invalid());
+        }
+        Ok(())
+    }).await
 }
 // Cache compact cards, not the homepage DOM or the complete library.
 async fn homepage(context: &Context) -> Result<Value> {
@@ -143,37 +200,6 @@ async fn homepage(context: &Context) -> Result<Value> {
     }).await
 }
 
-fn row_attr(row: &Value, name: &str) -> String {
-    site::tag_header(text(row), "article")
-        .and_then(|h| site::attribute(h, name))
-        .unwrap_or_default()
-}
-fn hydrate(row: &Value) -> Result<Value> {
-    let html = text(row);
-    let anchor = site::tag_header(html, "a").ok_or_else(site::invalid)?;
-    let href = site::attribute(anchor, "href").ok_or_else(site::invalid)?;
-    let id = if let Some(id) = href.strip_prefix("/series/") {
-        identity(id)?.to_owned()
-    } else {
-        path(&href, "series")?
-    };
-    if id.split('/').next() != Some(row_attr(row, "data-id").as_str()) {
-        return Err(site::invalid());
-    }
-    let title = row_attr(row, "data-t");
-    if title.is_empty() {
-        return Err(site::invalid());
-    }
-    let image = site::tag_header(html, "img")
-        .and_then(|h| site::attribute(h, "src"))
-        .ok_or_else(site::invalid)?;
-    Ok(site::card(
-        &id,
-        &title,
-        &site::link(&image, BASE, HOSTS)?,
-        "lightNovel",
-    ))
-}
 fn parse_series(html: &str, id: &str) -> Result<Value> {
     let schema = site::blocks(html, "script")
         .filter(|b| b.header.contains("application/ld+json"))
@@ -323,37 +349,7 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                 {"id":"library","title":"Library","type":0,"presentation":"latestGallery"}
             ])),
             "searchFilters" => Ok(filters()),
-            "searchSuggestions" => {
-                let data = catalog(&context).await?;
-                let mut values = Vec::new();
-                let mut seen = HashSet::new();
-                for (index, item) in data.as_array().unwrap().iter().enumerate() {
-                    if index % 50 == 0 {
-                        context.now().await?;
-                    }
-                    let field = text(&args["fieldID"]);
-                    if field.is_empty() || field == "author" {
-                        let author = row_attr(item, "data-a");
-                        if !author.is_empty() && seen.insert(("author", author.clone())) {
-                            values.push(json!({"fieldID":"author","value":author,"title":author}));
-                        }
-                    }
-                    if field.is_empty() || field == "genre" {
-                        for genre in row_attr(item, "data-tags")
-                            .split(',')
-                            .map(|s| s.trim().to_lowercase())
-                            .filter(|s| !s.is_empty())
-                        {
-                            if seen.insert(("genre", genre.clone())) {
-                                values.push(json!({"fieldID":"genre","value":genre,"title":genre}));
-                            }
-                        }
-                    }
-                }
-                drop(data);
-                context.now().await?;
-                Ok(suggestions(&args, values))
-            }
+            "searchSuggestions" => Ok(suggestions(&args, catalog_suggestions(&context).await?.as_array().unwrap().clone())),
             "search" | "discover" => {
                 validate_search(&filters(), &args)?;
                 let page = page(&args, 1_000_000)?;
@@ -368,81 +364,7 @@ fn run(context: Context, method: String, args: Value) -> Operation {
                     return Ok(json!({"items":items.iter().skip(start).take(25).collect::<Vec<_>>(),
                         "metadata":if start + 25 < items.len() { json!({"page":page+1}) } else { Value::Null }}));
                 }
-                let data = catalog(&context).await?;
-                let query = text(&args["query"]).trim().to_lowercase();
-                if query.len() > 500 {
-                    return Err(error("Search query is too long", "invalidSearchTerm"));
-                }
-                let sort = args["sort"].as_str().unwrap_or("relevance");
-                let field = match sort {
-                    "year" => "data-d",
-                    "volumes" => "data-v",
-                    _ => "data-rel",
-                };
-                let mut seen = HashSet::new();
-                let mut rows = Vec::new();
-                for (index, item) in data.as_array().unwrap().iter().enumerate() {
-                    if index % 50 == 0 {
-                        context.now().await?;
-                    }
-                    if !seen.insert(row_attr(item, "data-id")) {
-                        continue;
-                    }
-                    if !(query.is_empty()
-                        || row_attr(item, "data-t").to_lowercase().contains(&query)
-                        || row_attr(item, "data-a").to_lowercase().contains(&query))
-                    {
-                        continue;
-                    }
-                    if !args["selections"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .all(|s| {
-                            let value = text(&s["value"]).to_lowercase();
-                            let matches = if s["fieldID"] == "genre" {
-                                row_attr(item, "data-tags")
-                                    .split(',')
-                                    .any(|g| g.trim().eq_ignore_ascii_case(&value))
-                            } else {
-                                row_attr(item, "data-a").to_lowercase().contains(&value)
-                            };
-                            matches != (s["polarity"] == "exclude")
-                        })
-                    {
-                        continue;
-                    }
-                    rows.push((
-                        item,
-                        if sort == "title" {
-                            row_attr(item, "data-t").to_lowercase()
-                        } else {
-                            String::new()
-                        },
-                        row_attr(item, field).parse::<u64>().unwrap_or(0),
-                    ));
-                }
-                if sort == "title" {
-                    rows.sort_by(|a, b| a.1.cmp(&b.1));
-                } else {
-                    rows.sort_by(|a, b| b.2.cmp(&a.2));
-                }
-                let items: Vec<_> = rows.into_iter().map(|r| r.0).collect();
-                let start = (page as usize - 1) * 25;
-                let next = if start + 25 < items.len() {
-                    json!({"page":page+1})
-                } else {
-                    Value::Null
-                };
-                let cards = items
-                    .into_iter()
-                    .skip(start)
-                    .take(25)
-                    .map(hydrate)
-                    .collect::<Result<Vec<_>>>()?;
-                drop(data);
-                context.now().await?;
-                Ok(json!({"items":cards,"metadata":next}))
+                catalog(&context, &args).await
             }
             "details" => {
                 let mut value = series(&context, text(&args)).await?;

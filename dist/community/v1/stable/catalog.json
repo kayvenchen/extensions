@@ -8,7 +8,7 @@
       "id": "HitomiLA",
       "name": "Hitomi.la",
       "description": "Anonymous multi-language discovery, search, gallery details, and AVIF/WebP page reading for hitomi.la.",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "icon": "icons/HitomiLA.png",
       "languages": [
         "en",
@@ -67,9 +67,9 @@
       "extension": {
         "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/HitomiLA/3.0.0/main.wasm",
-        "sha256": "230802c34eee78b811769a7725edf2e39bdf9c325ae4f45c1fd5ec193f3f6afc",
-        "size": 2300585,
+        "moduleURL": "sources/HitomiLA/3.0.1/main.wasm",
+        "sha256": "e00d779037463da764d4b9252037d982f83e72ecc84153e3f0d5e49ffcf9a053",
+        "size": 1779308,
         "allowedHTTPSHosts": [
           "hitomi.la",
           "ltn.gold-usergeneratedcontent.net",
@@ -82,7 +82,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "230802c34eee78b811769a7725edf2e39bdf9c325ae4f45c1fd5ec193f3f6afc",
+      "moduleSHA256": "e00d779037463da764d4b9252037d982f83e72ecc84153e3f0d5e49ffcf9a053",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -105,7 +105,7 @@
       "id": "LNori",
       "name": "LNORI",
       "description": "English light-novel discovery, series details, and XHTML volume reading from lnori.com.",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "icon": "icons/LNori.svg",
       "languages": [
         "en"
@@ -148,9 +148,9 @@
       "extension": {
         "apiVersion": "3.0",
         "runtime": "wasm",
-        "moduleURL": "sources/LNori/3.0.0/main.wasm",
-        "sha256": "a77d10965cfe9fd1f9dd0cee2559f44cc4a0ad2c0736271ce94399a8f6b36134",
-        "size": 1271208,
+        "moduleURL": "sources/LNori/3.0.1/main.wasm",
+        "sha256": "9aac6fdc71334ac72dc2b3b58a97f06f2146dd88f45eb3b3d31fe909bd5907cb",
+        "size": 1276926,
         "allowedHTTPSHosts": [
           "lnori.com",
           "cdn.lnori.com",
@@ -160,7 +160,7 @@
           "none"
         ]
       },
-      "moduleSHA256": "a77d10965cfe9fd1f9dd0cee2559f44cc4a0ad2c0736271ce94399a8f6b36134",
+      "moduleSHA256": "9aac6fdc71334ac72dc2b3b58a97f06f2146dd88f45eb3b3d31fe909bd5907cb",
       "license": "Apache-2.0",
       "compatibility": {
         "adapter": "native-rust-wasm",
@@ -492,6 +492,80 @@
         "note": null,
         "limitations": [
           "Anonymous reading only. Search terms cannot be combined with site filters. Cloudflare verification may be required separately for an image host."
+        ],
+        "runtime": "native-wasm",
+        "apiVersion": "3.0"
+      },
+      "upstream": null
+    },
+    {
+      "id": "MangaKatana",
+      "name": "MangaKatana",
+      "description": "English manga discovery, title and author search, directory filters, and chapter reading from MangaKatana.",
+      "version": "3.0.0",
+      "icon": "icons/MangaKatana.png",
+      "languages": [
+        "en"
+      ],
+      "contentRating": "ADULT",
+      "capabilities": [
+        "browse",
+        "discover",
+        "search",
+        "filters",
+        "details",
+        "installments",
+        "acquisition",
+        "cookies",
+        "challengeHandoff",
+        "imageSequence"
+      ],
+      "developers": [
+        {
+          "name": "manko Extension Contributors"
+        }
+      ],
+      "rightsDeclaration": "Licensed under Apache-2.0.",
+      "rightsURL": "https://github.com/k800k/extensions/blob/main/extensions/content/MangaKatana/LICENSE",
+      "reportURL": "https://github.com/k800k/extensions/issues/new/choose",
+      "sourceURL": "https://github.com/k800k/extensions/tree/main/extensions/content/MangaKatana",
+      "sourceRevision": "main",
+      "entryType": "extension",
+      "kind": "content",
+      "availability": "approvalRequired",
+      "permissions": {
+        "values": [
+          "network",
+          "cookies",
+          "rateLimiting",
+          "redactedLogging",
+          "challengeHandoff",
+          "state"
+        ]
+      },
+      "extension": {
+        "apiVersion": "3.0",
+        "runtime": "wasm",
+        "moduleURL": "sources/MangaKatana/3.0.0/main.wasm",
+        "sha256": "2f1f9716c8be23e8970d52475b235409492df31a8c5943f77f80fd6f5192a0b0",
+        "size": 2262469,
+        "allowedHTTPSHosts": [
+          "mangakatana.com",
+          "i1.mangakatana.com"
+        ],
+        "authenticationModes": [
+          "none"
+        ]
+      },
+      "moduleSHA256": "2f1f9716c8be23e8970d52475b235409492df31a8c5943f77f80fd6f5192a0b0",
+      "license": "Apache-2.0",
+      "compatibility": {
+        "adapter": "native-rust-wasm",
+        "status": "supported",
+        "scope": "core",
+        "note": null,
+        "limitations": [
+          "Anonymous reading only. Text search cannot be combined with directory filters. Uses the default reader server; new image hosts require an extension update."
         ],
         "runtime": "native-wasm",
         "apiVersion": "3.0"

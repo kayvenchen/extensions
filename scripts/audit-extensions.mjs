@@ -48,15 +48,22 @@ for(const id of ids.filter(id=>!selected||selected.split(',').includes(id))) {
     if(page?.metadata)await step(`sort pagination:${sort.id}`,()=>ext.search({query:'',sort:sort.id,metadata:page.metadata}));
    }
    await step('search text',()=>ext.search({query:id==='HitomiLA'?'1':'sample'}));
-   const values={genre:id==='OmegaScans'?'1':id==='MangaFox'?'action':id==='MangaFire'?'1':id.startsWith('Manga')?'2':'fantasy',author:'sample',artist:'sample',tag:'landscape',female:'landscape',male:'landscape',group:'sample',series:'sample',character:'sample',type:'manga',parody:'sample',category:'manga',pages:'3',favorites:'12',uploaded:'>2020-01-01',title:'sample',jtitle:'sample'};
+   if(id==='MangaKatana') {
+    for(const query of ['sample','Sample','missing','Missing']) {
+     const page=await step(`native search:${query}`,()=>ext.search({query}));
+     if(page?.metadata)await step(`native search pagination:${query}`,()=>ext.search({query,metadata:page.metadata}));
+    }
+   }
+   const values={genre:id==='OmegaScans'?'1':['MangaFox','MangaKatana'].includes(id)?'action':id==='MangaFire'?'1':id.startsWith('Manga')?'2':'fantasy',author:'sample',artist:'sample',tag:'landscape',female:'landscape',male:'landscape',group:'sample',series:'sample',character:'sample',type:'manga',parody:'sample',category:'manga',pages:'3',favorites:'12',uploaded:'>2020-01-01',title:'sample',jtitle:'sample'};
    for(const field of configuration?.fields||[]) {
     const value=field.options?.[0]?.id||values[field.id];
     const selection={fieldID:field.id,value,polarity:'include'};
-    if(field.inputKind==='lookup'&&['LNori','MangaFox','MangaFire','OmegaScans'].includes(id)) {
+    if(field.inputKind==='lookup'&&['LNori','MangaFox','MangaKatana','MangaFire','OmegaScans'].includes(id)) {
      await step(`suggestions:${field.id}`,()=>ext.searchSuggestions({fieldID:field.id,query:'',limit:20}));
      await step(`suggestions filtered:${field.id}`,()=>ext.searchSuggestions({fieldID:field.id,query:'fan',limit:20}));
     }
-    await step(`filter:${field.id}`,()=>ext.search({selections:[selection]}));
+    const filtered=await step(`filter:${field.id}`,()=>ext.search({selections:[selection]}));
+    if(id==='MangaKatana'&&filtered?.metadata)await step(`filter pagination:${field.id}`,()=>ext.search({selections:[selection],metadata:filtered.metadata}));
     if(field.supportsExclusion)await step(`exclude:${field.id}`,()=>ext.search({selections:[{...selection,polarity:'exclude'}]}));
    }
   }

@@ -8,7 +8,7 @@ import {resolve} from "node:path";
 import {validateModule, instantiate} from "../lib/wasm.mjs";
 import {assertExtensionPackage} from "../lib/contracts.mjs";
 const root=resolve(import.meta.dirname,"../../..");
-const packs={official:["AniList","Kavita","Komga","MyAnimeList","OPDS","Suwayomi"],community:["HitomiLA","LNori","MangaBat","MangaFire","MangaFox","MangaKakalot","MangaNato","NHentai","OmegaScans"]};
+const packs={official:["AniList","Kavita","Komga","MyAnimeList","OPDS","Suwayomi"],community:["HitomiLA","LNori","MangaBat","MangaFire","MangaFox","MangaKakalot","MangaKatana","MangaNato","NHentai","OmegaScans"]};
 
 test("Independent catalogs contain only their packages with matching digests",async()=>{
   for(const [pack,ids] of Object.entries(packs)) {

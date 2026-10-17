@@ -2,11 +2,12 @@
 // Original, sanitized response fixtures. Endpoint shapes checked 2026-10-13.
 import {runtimeResponse, MINIMAL_PNG_BYTES} from '../extensions/content/test-runtime.mjs';
 import {responder as lnori} from '../extensions/content/LNori/tests/fixtures.mjs';
+import {responder as katana} from '../extensions/content/MangaKatana/tests/fixtures.mjs';
 import {responder as fox} from '../extensions/content/MangaFox/tests/fixtures.mjs';
 import {responder as fire, fixture as fireFixture} from '../extensions/content/MangaFire/tests/fixtures.mjs';
 const json=(r,value)=>runtimeResponse({url:r.url,mimeType:'application/json',text:JSON.stringify(value)});
 const html=(r,text)=>runtimeResponse({url:r.url,mimeType:'text/html',text});
-export const ids=['HitomiLA','NHentai','LNori','MangaFox','MangaFire','MangaKakalot','MangaNato','MangaBat','OmegaScans','OPDS','Komga','Kavita','Suwayomi','AniList','MyAnimeList'];
+export const ids=['HitomiLA','NHentai','LNori','MangaFox','MangaKatana','MangaFire','MangaKakalot','MangaNato','MangaBat','OmegaScans','OPDS','Komga','Kavita','Suwayomi','AniList','MyAnimeList'];
 export const connection=id=>({baseURL:`https://server.test/${id.toLowerCase()}/`,options:id==='Suwayomi'?{sourceID:'42'}:{}});
 const gallery={id:101,media_id:'9001',title:{english:'The Quiet Observatory',pretty:'The Quiet Observatory'},cover:{path:'/galleries/9001/cover.png',width:600,height:900},thumbnail:{path:'/galleries/9001/thumb.png',width:300,height:450},pages:[1,2,3].map(number=>({number,path:`/galleries/9001/${number}.png`})),tags:[{type:'language',name:'english'},{type:'artist',name:'Manko Fixtures'},{type:'tag',name:'landscape'}],num_pages:3,num_favorites:12,upload_date:1700000000};
 const omega={id:7,series_slug:'sample-comic',title:'The Quiet Observatory',series_type:'Comic',thumbnail:'https://media.omegascans.org/cover.png',author:'Manko Fixtures',description:'<p>An original journey through the night sky.</p>',status:'Ongoing',tags:'$b'};
@@ -26,6 +27,7 @@ export function responder(id) {
    }
    return response;
   }
+  if(id==='MangaKatana')return katana(r);
   if(id==='MangaFox'){
    const response=fox(r);
    return p.includes('/c002.5/')?html(r,Buffer.from(response.dataBase64,'base64').toString().replaceAll('/v01/c001/','/c002.5/')):response;

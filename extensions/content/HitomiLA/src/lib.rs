@@ -1,7 +1,8 @@
 // Copyright 2026 manko Extension Contributors; SPDX-License-Identifier: Apache-2.0
 use base64::{engine::general_purpose::STANDARD, Engine};
+use html_escape::decode_html_entities;
 use manko_sdk::{content::*, *};
-use manko_site_support::{attr, field, link, plain, scraper::Html, selector};
+use manko_site_support::{self as site, link};
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 use serde::{
@@ -336,31 +337,54 @@ fn card_share(value: &str, expected: &str) -> Result<url::Url> {
     }
     Ok(url)
 }
-pub fn card_assignment(source: &str, expected: &str) -> Result<Value> {
-    // Parse the site's small card fragment, never the full gallery file list.
-    let document = Html::parse_fragment(source);
-    let title = field(&document, "h1 a");
-    let share_url = card_share(&attr(&document, "h1 a", "href"), expected)?;
-    if title.is_empty() {
-        return Err(invalid("Missing gallery card title"));
+fn card_text(source: &str) -> String {
+    let mut output = String::new();
+    let mut in_tag = false;
+    let mut quote = None;
+    for c in source.chars() {
+        if in_tag {
+            if let Some(q) = quote {
+                if c == q { quote = None; }
+            } else if matches!(c, '\'' | '"') { quote = Some(c); }
+            else if c == '>' { in_tag = false; }
+        } else if c == '<' {
+            in_tag = true;
+            output.push(' ');
+        } else { output.push(c); }
     }
-    let source_set = attr(
-        &document,
-        ".dj-img1 source[type='image/avif']",
-        "data-srcset",
-    );
-    let thumbnail = source_set
-        .split(',')
-        .next()
-        .unwrap_or("")
-        .split_whitespace()
-        .next()
-        .unwrap_or("");
+    decode_html_entities(&output).split_whitespace().collect::<Vec<_>>().join(" ")
+}
+fn card_class<'a>(source: &'a str, class: &str) -> &'a str {
+    for tag in ["div", "td", "p"] {
+        if let Some(block) = site::blocks(source, tag).find(|block|
+            site::attribute(block.header, "class").is_some_and(|value| value.split_whitespace().any(|value| value == class))) {
+            return block.body;
+        }
+    }
+    ""
+}
+pub fn card_assignment(source: &str, expected: &str) -> Result<Value> {
+    // Read the small, known card fields directly. Building an HTML5 DOM for
+    // every decorative node on a 25-card page exceeds the guest fuel budget.
+    let heading = site::blocks(source, "h1").next().ok_or_else(|| invalid("Missing gallery card title"))?;
+    let anchor = site::blocks(heading.body, "a").next().ok_or_else(|| invalid("Missing gallery card title"))?;
+    let title = card_text(anchor.body);
+    let share_url = card_share(&site::attribute(anchor.header, "href").unwrap_or_default(), expected)?;
+    if title.is_empty() { return Err(invalid("Missing gallery card title")); }
+    let cover = card_class(source, "dj-img1");
+    let mut remaining = cover;
+    let mut source_set = String::new();
+    while let Some(header) = site::tag_header(remaining, "source") {
+        remaining = remaining.split_once(header).ok_or_else(|| invalid("Invalid card cover"))?.1;
+        if site::attribute(header, "type").as_deref() == Some("image/avif") {
+            source_set = site::attribute(header, "data-srcset").unwrap_or_default();
+            break;
+        }
+    }
+    let thumbnail = source_set.split(',').next().unwrap_or("").split_whitespace().next().unwrap_or("");
     let thumbnail = if thumbnail.is_empty() {
-        attr(&document, ".dj-img1 img", "data-src")
-    } else {
-        thumbnail.to_owned()
-    };
+        site::tag_header(cover, "img").and_then(|h| site::attribute(h, "data-src")).unwrap_or_default()
+    } else { thumbnail.to_owned() };
     let thumbnail = link(
         &thumbnail,
         "https://hitomi.la/",
@@ -387,52 +411,45 @@ pub fn card_assignment(source: &str, expected: &str) -> Result<Value> {
     {
         return Err(invalid("Invalid card cover hash path"));
     }
-    let language_link = attr(&document, "a[href^='/index-']", "href");
-    let language = language_link
-        .strip_prefix("/index-")
-        .and_then(|s| s.strip_suffix(".html"))
-        .unwrap_or("unknown");
-    let language_name = field(&document, "a[href^='/index-']");
+    let anchors: Vec<_> = site::blocks(source, "a").collect();
+    let find_anchor = |prefix: &str| anchors.iter().find(|anchor|
+        site::attribute(anchor.header, "href").is_some_and(|href| href.starts_with(prefix)));
+    let language_anchor = find_anchor("/index-");
+    let language_link = language_anchor.and_then(|a| site::attribute(a.header, "href")).unwrap_or_default();
+    let language = language_link.strip_prefix("/index-").and_then(|s| s.strip_suffix(".html")).unwrap_or("unknown");
+    let language_name = language_anchor.map(|a| card_text(a.body)).unwrap_or_default();
     let mut gallery = json!({
         "id":expected,"title":title,"galleryurl":share_url.path(),
         "language":language,"language_localname":if language_name.is_empty() {language} else {&language_name},
-        "type":field(&document,"a[href^='/type/']"),
-        "files":[{"hash":cover_hash}],"date":field(&document,".date"),"tags":[],
+        "type":find_anchor("/type/").map(|a| card_text(a.body)).unwrap_or_default(),
+        "files":[{"hash":cover_hash}],"date":card_text(card_class(source,"date")),"tags":[],
     });
-    for (group, key, query) in [
-        ("artists", "artist", ".artist-list a"),
-        ("groups", "group", "a[href^='/group/']"),
-        ("parodys", "parody", ".series-list a"),
-        ("characters", "character", "a[href^='/character/']"),
+    for (group, key, class, prefix) in [
+        ("artists", "artist", "artist-list", ""),
+        ("groups", "group", "", "/group/"),
+        ("parodys", "parody", "series-list", ""),
+        ("characters", "character", "", "/character/"),
     ] {
-        gallery[group] = json!(document
-            .select(&selector(query))
-            .map(|element| {
-                let mut value = serde_json::Map::new();
-                value.insert(key.into(), json!(plain(element)));
-                Value::Object(value)
-            })
-            .collect::<Vec<_>>());
-    }
-    for tag in document.select(&selector(".relatedtags a[href^='/tag/']")) {
-        let href = tag.value().attr("href").unwrap_or("");
-        let Some(encoded) = href
-            .strip_prefix("/tag/")
-            .and_then(|s| s.strip_suffix("-all.html"))
-        else {
-            continue;
+        let values = if class.is_empty() {
+            anchors.iter().filter(|a| site::attribute(a.header,"href").is_some_and(|href| href.starts_with(prefix)))
+                .map(|a| card_text(a.body)).collect::<Vec<_>>()
+        } else {
+            site::blocks(card_class(source,class),"a").map(|a| card_text(a.body)).collect()
         };
-        let decoded = percent_decode_str(encoded)
-            .decode_utf8()
-            .map_err(|_| invalid("Invalid tag encoding"))?;
-        let (namespace, name) = decoded.split_once(':').unwrap_or(("tag", &decoded));
-        if name.trim().is_empty() {
-            continue;
-        }
+        gallery[group] = json!(values.into_iter().map(|value| {
+            let mut row = serde_json::Map::new();
+            row.insert(key.into(), json!(value));
+            Value::Object(row)
+        }).collect::<Vec<_>>());
+    }
+    for tag in site::blocks(card_class(source,"relatedtags"),"a") {
+        let href = site::attribute(tag.header,"href").unwrap_or_default();
+        let Some(encoded) = href.strip_prefix("/tag/").and_then(|s| s.strip_suffix("-all.html")) else { continue; };
+        let decoded = percent_decode_str(encoded).decode_utf8().map_err(|_| invalid("Invalid tag encoding"))?;
+        let (namespace,name) = decoded.split_once(':').unwrap_or(("tag", &decoded));
+        if name.trim().is_empty() { continue; }
         let mut value = json!({"tag":name});
-        if matches!(namespace, "female" | "male") {
-            value[namespace] = json!(1);
-        }
+        if matches!(namespace,"female"|"male") { value[namespace] = json!(1); }
         gallery["tags"].as_array_mut().unwrap().push(value);
     }
     validate_gallery(&gallery, expected)?;
@@ -441,7 +458,7 @@ pub fn card_assignment(source: &str, expected: &str) -> Result<Value> {
 async fn gallery_card(context: &Context, id: &str) -> Result<Value> {
     context
         .remember(
-            &format!("hitomi:gallery-card-v2:{id}"),
+            &format!("hitomi:gallery-card-v3:{id}"),
             Some(1800.0),
             async {
                 let response = request(
@@ -1064,7 +1081,7 @@ async fn index_range(
     address: u64,
     length: u64,
 ) -> Result<Vec<u8>> {
-    let key = format!("hitomi:index:{version}:{suffix}:{address}:{length}");
+    let key = format!("hitomi:index-v2:{version}:{suffix}:{address}:{length}");
     let value = context
         .remember(
             &key,
@@ -1101,13 +1118,9 @@ async fn index_range(
                 }
                 if suffix == "index" {
                     decode_node(&decoded)?;
-                } else {
-                    let count = u32_at(&decoded, 0)? as usize;
-                    if count == 0 || decoded.len() != count * 4 + 4 {
-                        return Err(invalid("Malformed title index data"));
-                    }
-                    nozomi(&decoded[4..])?;
                 }
+                // Data ranges can be fragments of one posting list. Its count
+                // and gallery IDs are validated after reassembling all chunks.
                 Ok(())
             },
         )
@@ -1164,11 +1177,22 @@ async fn title_ids(context: &Context, term: &str) -> Result<Vec<u32>> {
         if position < node.keys.len() && node.keys[position] == key {
             let (address, length) = node.data[position];
             let bytes = index_bytes(context, &version, "data", address, length).await?;
-            let count = u32_at(&bytes, 0)? as usize;
-            if count == 0 || count > 10_000_000 || bytes.len() != count * 4 + 4 {
-                return Err(invalid("Malformed title index data"));
+            let result = (|| {
+                let count = u32_at(&bytes, 0)? as usize;
+                if count == 0 || count > 10_000_000 || bytes.len() != count * 4 + 4 {
+                    return Err(invalid("Malformed title index data"));
+                }
+                nozomi(&bytes[4..])
+            })();
+            if result.is_err() {
+                // Fragments cannot be validated independently. Evict them if
+                // aggregate validation fails so a corrected response can retry.
+                for offset in (0..length).step_by(INDEX_CHUNK_BYTES as usize) {
+                    let key = format!("hitomi:index-v2:{version}:data:{}:{}", address + offset, (length - offset).min(INDEX_CHUNK_BYTES));
+                    context.call("cache", json!({"operation":"remove","key":key})).await?;
+                }
             }
-            return nozomi(&bytes[4..]);
+            return result;
         }
         if node.children.iter().all(|v| *v == 0) {
             return Ok(vec![]);
@@ -1195,6 +1219,45 @@ fn catalog_offset(args: &Value) -> Result<u64> {
     }
     // Legacy page cursors and current offset cursors both count consumed IDs.
     Ok((page(&json!({"metadata":cursor}), 100_000)? - 1) * 25)
+}
+
+async fn sorted_search_page(
+    context: &Context,
+    language: &str,
+    sort: &str,
+    allowed: HashSet<u32>,
+    offset: u64,
+) -> Result<Value> {
+    let path = if let Some(period) = sort.strip_prefix("popular-") {
+        format!("popular/{}", segment(period, false)?)
+    } else if sort == "date-published" {
+        "date/published".into()
+    } else {
+        "index".into()
+    };
+    let url = format!("{STATIC}/n/{path}-{}.nozomi", segment(language, false)?);
+    let mut start = 0;
+    let mut skipped = 0;
+    let mut page = Vec::new();
+    let mut remaining = allowed.clone();
+    while !remaining.is_empty() {
+        let (bytes, total) = nozomi_range(context, &url, start, INDEX_CHUNK_BYTES).await?;
+        start += bytes.len() as u64;
+        // Intersect in catalog order and stop after one page plus a lookahead.
+        // Do not materialize the entire language catalog for every title query.
+        for id in nozomi(&bytes)? {
+            if !allowed.contains(&id) { continue; }
+            remaining.remove(&id);
+            if skipped < offset { skipped += 1; continue; }
+            page.push(id);
+            if page.len() > CATALOG_PAGE_SIZE as usize { break; }
+        }
+        if page.len() > CATALOG_PAGE_SIZE as usize || start >= total { break; }
+    }
+    let has_next = page.len() > CATALOG_PAGE_SIZE as usize;
+    page.truncate(CATALOG_PAGE_SIZE as usize);
+    Ok(json!({"items":cards(context, &page).await?,
+        "metadata":if has_next { json!({"offset":offset+CATALOG_PAGE_SIZE}) } else { Value::Null }}))
 }
 async fn search(context: &Context, args: &Value) -> Result<Value> {
     validate_search(&filters(), args)?;
@@ -1300,12 +1363,7 @@ async fn search(context: &Context, args: &Value) -> Result<Value> {
         result.retain(|id| !blocked.contains(id));
     }
     if !positive.is_empty() && sort != "random" {
-        let allowed: HashSet<_> = result.into_iter().collect();
-        result = ids(context, &language, None, sort)
-            .await?
-            .into_iter()
-            .filter(|v| allowed.contains(v))
-            .collect();
+        return sorted_search_page(context, &language, sort, result.into_iter().collect(), offset).await;
     }
     let mut seed = 0u32;
     if sort == "random" {
